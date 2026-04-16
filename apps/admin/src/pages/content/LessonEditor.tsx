@@ -13,9 +13,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -97,19 +95,8 @@ export default function LessonEditor() {
     }
   };
 
-  // Group chapters by section
-  const sectionMap = new Map<string, { label: string; chapters: typeof chapters }>();
-  if (chapters && sections) {
-    for (const section of sections) {
-      sectionMap.set(section.id, { label: section.label, chapters: [] });
-    }
-    for (const chapter of chapters) {
-      const entry = sectionMap.get(chapter.section_id);
-      if (entry) {
-        entry.chapters = [...(entry.chapters ?? []), chapter];
-      }
-    }
-  }
+  const sectionLabel = (sectionId: string) =>
+    sections?.find((s) => s.id === sectionId)?.label ?? sectionId;
 
   return (
     <div className="space-y-6">
@@ -157,15 +144,10 @@ export default function LessonEditor() {
                   <SelectValue placeholder="Choisir un chapitre" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[...sectionMap.entries()].map(([sectionId, { label, chapters: sChapters }]) => (
-                    <SelectGroup key={sectionId}>
-                      <SelectLabel>{label}</SelectLabel>
-                      {(sChapters ?? []).map((ch) => (
-                        <SelectItem key={ch.id} value={ch.id}>
-                          {ch.title}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
+                  {(chapters ?? []).map((ch) => (
+                    <SelectItem key={ch.id} value={ch.id}>
+                      {sectionLabel(ch.section_id)} — {ch.title}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
