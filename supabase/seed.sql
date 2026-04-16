@@ -187,3 +187,43 @@ INSERT INTO fiches (id, section_id, title, description) VALUES
   ('fiche-comp-1', 'comprehension', 'Thèmes récurrents', 'Les grands thèmes des textes de compréhension'),
   ('fiche-comp-2', 'comprehension', 'Lecture rapide', 'Techniques pour lire plus vite et mieux comprendre'),
   ('fiche-comp-3', 'comprehension', 'Types de questions', 'Classification et méthode par type de question');
+
+-- ============================================================
+-- Admin user (admin@astprep.fr / admin123456)
+-- ============================================================
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token, reauthentication_token,
+  email_change, email_change_token_new, email_change_token_current,
+  phone, phone_change, phone_change_token,
+  email_change_confirm_status
+) VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated',
+  'admin@astprep.fr',
+  crypt('admin123456', gen_salt('bf')),
+  now(), now(), now(),
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Admin ASTPrep"}',
+  '', '', '',
+  '', '', '',
+  '', '', '',
+  0
+);
+
+INSERT INTO auth.identities (
+  id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+) VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000001',
+  'admin@astprep.fr',
+  '{"sub":"00000000-0000-0000-0000-000000000001","email":"admin@astprep.fr"}',
+  'email',
+  now(), now(), now()
+);
+
+UPDATE profiles SET full_name = 'Admin ASTPrep', email = 'admin@astprep.fr', is_admin = true
+  WHERE id = '00000000-0000-0000-0000-000000000001';

@@ -6,13 +6,19 @@
 ALTER TABLE profiles ADD COLUMN is_admin boolean NOT NULL DEFAULT false;
 
 -- 2. Helper function: check if current user is admin
+-- SECURITY DEFINER + SET search_path ensures this bypasses RLS
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean AS $$
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
   SELECT COALESCE(
-    (SELECT is_admin FROM public.profiles WHERE id = auth.uid()),
+    (SELECT is_admin FROM profiles WHERE id = auth.uid()),
     false
   );
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+$$;
 
 -- ============================================================
 -- 3. Admin WRITE policies for content tables
@@ -82,6 +88,7 @@ CREATE POLICY "Admin delete live_courses" ON live_courses FOR DELETE USING (publ
 -- 4. Admin READ policies for user data tables
 -- ============================================================
 
+-- For profiles, use is_admin() which is SECURITY DEFINER (bypasses RLS)
 CREATE POLICY "Admin read all profiles" ON profiles FOR SELECT USING (public.is_admin());
 CREATE POLICY "Admin read all quiz_sessions" ON quiz_sessions FOR SELECT USING (public.is_admin());
 CREATE POLICY "Admin read all quiz_answers" ON quiz_answers FOR SELECT USING (public.is_admin());
