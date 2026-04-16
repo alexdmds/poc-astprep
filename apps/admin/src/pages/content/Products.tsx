@@ -103,7 +103,9 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Produits" description="Gestion des produits" />
+      <PageHeader title="Produits" description="Gestion des produits">
+        <Button onClick={() => openEdit()}>Nouveau produit</Button>
+      </PageHeader>
       <DataTable columns={columns} data={products} isLoading={isLoading} />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

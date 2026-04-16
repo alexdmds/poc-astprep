@@ -22,6 +22,7 @@ const Flashcards = lazy(() => import("@/pages/content/Flashcards"));
 const FlashcardEditor = lazy(() => import("@/pages/content/FlashcardEditor"));
 const Fiches = lazy(() => import("@/pages/content/Fiches"));
 const FicheEditor = lazy(() => import("@/pages/content/FicheEditor"));
+const Products = lazy(() => import("@/pages/content/Products"));
 const LiveCourses = lazy(() => import("@/pages/content/LiveCourses"));
 const LiveCourseEditor = lazy(() => import("@/pages/content/LiveCourseEditor"));
 
@@ -48,6 +49,7 @@ export default function App() {
         <Route element={<AdminGuard />}>
           <Route element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
+            <Route path="content/products" element={<Products />} />
             <Route path="content/sections" element={<Sections />} />
             <Route path="content/themes" element={<Themes />} />
             <Route path="content/chapters" element={<Chapters />} />

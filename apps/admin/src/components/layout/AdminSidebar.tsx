@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
+  Package,
   Layers,
   Tags,
   BookOpen,
@@ -35,6 +36,7 @@ const navGroups = [
   {
     label: "CONTENU",
     items: [
+      { to: "/content/products", icon: Package, label: "Produits" },
       { to: "/content/sections", icon: Layers, label: "Sections" },
       { to: "/content/themes", icon: Tags, label: "Themes" },
       { to: "/content/chapters", icon: BookOpen, label: "Chapitres" },

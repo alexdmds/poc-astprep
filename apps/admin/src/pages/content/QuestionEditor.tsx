@@ -24,6 +24,7 @@ import { useQuestion, useUpsertQuestion } from "@/lib/queries/questions";
 import { useSections } from "@/lib/queries/sections";
 import { useLessons } from "@/lib/queries/lessons";
 import { useThemes } from "@/lib/queries/themes";
+import { useProducts } from "@/lib/queries/products";
 
 const LABELS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -90,6 +91,7 @@ export default function QuestionEditor() {
   const watchedCorrectAnswer = form.watch("correct_answer");
   const watchedExplanation = form.watch("explanation");
 
+  const { data: products = [] } = useProducts();
   const { data: sections } = useSections();
   const { data: lessons } = useLessons();
   const { data: themes } = useThemes(sectionId);
@@ -107,7 +109,7 @@ export default function QuestionEditor() {
 
       form.reset({
         id: question.id,
-        product_id: "tage_mage",
+        product_id: question.product_id ?? "tage_mage",
         section_id: question.section_id,
         theme: question.theme,
         number: question.number ?? undefined,
@@ -187,6 +189,26 @@ export default function QuestionEditor() {
                     <Label htmlFor="number">Numero</Label>
                     <Input id="number" type="number" {...form.register("number")} />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Produit *</Label>
+                  <Select
+                    value={form.watch("product_id")}
+                    onValueChange={(v) => form.setValue("product_id", v, { shouldValidate: true })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisir un produit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.product_id && (
+                    <p className="text-sm text-destructive">{form.formState.errors.product_id.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
