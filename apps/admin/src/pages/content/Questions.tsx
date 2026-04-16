@@ -22,7 +22,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useQuestions, useDeleteQuestion } from "@/lib/queries/questions";
-import { useProducts } from "@/lib/queries/products";
 import { useSections } from "@/lib/queries/sections";
 
 interface QuestionRow {
@@ -44,19 +43,16 @@ const DIFFICULTY_VARIANT: Record<string, "default" | "secondary" | "destructive"
 
 export default function Questions() {
   const navigate = useNavigate();
-  const [productId, setProductId] = useState<string | undefined>(undefined);
   const [sectionId, setSectionId] = useState<string | undefined>(undefined);
   const [difficulty, setDifficulty] = useState<string | undefined>(undefined);
   const [search, setSearch] = useState("");
 
   const { data: questions = [], isLoading } = useQuestions({
-    productId,
     sectionId,
     difficulty,
     search: search || undefined,
   });
-  const { data: products = [] } = useProducts();
-  const { data: sections = [] } = useSections(productId);
+  const { data: sections = [] } = useSections();
   const deleteQuestion = useDeleteQuestion();
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -134,26 +130,6 @@ export default function Questions() {
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-4">
-        <Select
-          value={productId ?? "all"}
-          onValueChange={(v) => {
-            setProductId(v === "all" ? undefined : v);
-            setSectionId(undefined);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Produit" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les produits</SelectItem>
-            {products.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Select
           value={sectionId ?? "all"}
           onValueChange={(v) => setSectionId(v === "all" ? undefined : v)}

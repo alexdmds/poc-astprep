@@ -7,7 +7,6 @@ import AdminLayout from "@/components/layout/AdminLayout";
 const Login = lazy(() => import("@/pages/Login"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 
-const Products = lazy(() => import("@/pages/content/Products"));
 const Sections = lazy(() => import("@/pages/content/Sections"));
 const Themes = lazy(() => import("@/pages/content/Themes"));
 const Chapters = lazy(() => import("@/pages/content/Chapters"));
@@ -49,7 +48,6 @@ export default function App() {
         <Route element={<AdminGuard />}>
           <Route element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
-            <Route path="content/products" element={<Products />} />
             <Route path="content/sections" element={<Sections />} />
             <Route path="content/themes" element={<Themes />} />
             <Route path="content/chapters" element={<Chapters />} />

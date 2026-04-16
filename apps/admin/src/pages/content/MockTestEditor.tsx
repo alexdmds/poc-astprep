@@ -20,7 +20,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 
 import { useMockTest, useUpsertMockTest } from "@/lib/queries/mock-tests";
-import { useProducts } from "@/lib/queries/products";
 
 const schema = z.object({
   id: z.string().min(1, "L'identifiant est requis"),
@@ -41,7 +40,6 @@ export default function MockTestEditor() {
   const isEdit = !!id;
 
   const { data: mockTest } = useMockTest(id ?? "");
-  const { data: products } = useProducts();
   const upsert = useUpsertMockTest();
 
   const form = useForm<FormValues>({
@@ -125,28 +123,6 @@ export default function MockTestEditor() {
               <Input id="title" {...form.register("title")} />
               {form.formState.errors.title && (
                 <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Produit *</Label>
-              <Select
-                value={form.watch("product_id")}
-                onValueChange={(v) => form.setValue("product_id", v, { shouldValidate: true })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisir un produit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products?.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.product_id && (
-                <p className="text-sm text-destructive">{form.formState.errors.product_id.message}</p>
               )}
             </div>
 

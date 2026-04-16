@@ -1,41 +1,45 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Zap, RotateCcw, PartyPopper } from "lucide-react";
+import { Check, X, Zap, RotateCcw, PartyPopper, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { sections } from "@/data/sections";
-import { flashcardsData, deckStats, themeFlashcardCounts } from "@/data/flashcards";
+import { useFlashcardTemplates, useFlashcardProgress, useSaveFlashcardRating } from "@/lib/queries/flashcards";
+import { useAuth } from "@/lib/auth";
 import type { Flashcard } from "@/data/flashcards";
 
 const statusOptions = [
-  { id: "due", label: "À réviser aujourd'hui" },
   { id: "all", label: "Toutes" },
   { id: "new", label: "Nouvelles" },
   { id: "learning", label: "En apprentissage" },
   { id: "mastered", label: "Maîtrisées" },
 ];
-const countOptions = ["5", "10", "15", "20", "Toutes les dues"] as const;
+const countOptions = ["5", "10", "15", "20", "Toutes"] as const;
 const timerOptions = ["10s", "15s", "30s", "1 min"] as const;
 
 type Phase = "config" | "session" | "done";
 type Rating = "incorrect" | "correct" | "easy";
 
 export default function Flashcards() {
+  const { user } = useAuth();
   const [selectedSections, setSelectedSections] = useState<Set<string>>(new Set());
   const [selectedThemes, setSelectedThemes] = useState<Set<string>>(new Set());
-  const [status, setStatus] = useState("due");
+  const [status, setStatus] = useState("all");
   const [count, setCount] = useState("10");
   const [chronoEnabled, setChronoEnabled] = useState(false);
   const [chronoDuration, setChronoDuration] = useState("15s");
   const [phase, setPhase] = useState<Phase>("config");
 
-  // Session state
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [reviewMsg, setReviewMsg] = useState<string | null>(null);
   const [exitDirection, setExitDirection] = useState<number>(0);
+
+  const { data: allCards, isLoading: loadingCards } = useFlashcardTemplates();
+  const { data: progress } = useFlashcardProgress(user?.id);
+  const saveRating = useSaveFlashcardRating();
 
   const toggleSection = (id: string) => {
     setSelectedSections(prev => {
@@ -56,33 +60,48 @@ export default function Flashcards() {
 
   const availableThemes = useMemo(() => {
     const themes: { name: string; count: number }[] = [];
-    selectedSections.forEach(sid => {
-      const sectionThemes = themeFlashcardCounts[sid];
-      if (sectionThemes) {
-        Object.entries(sectionThemes).forEach(([name, c]) => themes.push({ name, count: c }));
-      }
-    });
+    const seen = new Map<string, number>();
+    for (const card of allCards ?? []) {
+      if (selectedSections.size > 0 && !selectedSections.has(card.sectionId)) continue;
+      seen.set(card.theme, (seen.get(card.theme) ?? 0) + 1);
+    }
+    seen.forEach((cnt, name) => themes.push({ name, count: cnt }));
     return themes;
-  }, [selectedSections]);
+  }, [allCards, selectedSections]);
+
+  const deckStats = useMemo(() => {
+    const cards = allCards ?? [];
+    const total = cards.length;
+    const mastered = cards.filter(c => progress?.[c.id]?.status === "mastered").length;
+    const learning = cards.filter(c => progress?.[c.id]?.status === "learning").length;
+    const newCards = cards.filter(c => !progress?.[c.id] || progress[c.id].status === "new").length;
+    const now = new Date();
+    const due = cards.filter(c => {
+      const p = progress?.[c.id];
+      if (!p) return true;
+      if (!p.next_review) return true;
+      return new Date(p.next_review) <= now;
+    }).length;
+    return { total, mastered, learning, new: newCards, due };
+  }, [allCards, progress]);
 
   const sessionCards = useMemo(() => {
-    let cards = flashcardsData;
+    let cards = allCards ?? [];
     if (selectedSections.size > 0) cards = cards.filter(c => selectedSections.has(c.sectionId));
     if (selectedThemes.size > 0) cards = cards.filter(c => selectedThemes.has(c.theme));
-    const max = count === "Toutes les dues" ? cards.length : parseInt(count);
+    if (status !== "all") {
+      const now = new Date();
+      cards = cards.filter(c => {
+        const p = progress?.[c.id];
+        if (status === "new") return !p || p.status === "new";
+        if (status === "learning") return p?.status === "learning";
+        if (status === "mastered") return p?.status === "mastered";
+        return true;
+      });
+    }
+    const max = count === "Toutes" ? cards.length : parseInt(count);
     return cards.slice(0, max);
-  }, [selectedSections, selectedThemes, count]);
-
-  const summaryParts: string[] = [];
-  summaryParts.push(`${sessionCards.length} cartes`);
-  if (selectedSections.size > 0) {
-    const names = Array.from(selectedSections).map(s => sections.find(sec => sec.id === s)?.shortLabel || s);
-    summaryParts.push(`de ${names.join(", ")}`);
-  }
-  if (selectedThemes.size > 0) summaryParts.push(`> ${Array.from(selectedThemes).join(" + ")}`);
-  const statusLabel = statusOptions.find(s => s.id === status)?.label || "";
-  summaryParts.push(`— ${statusLabel}`);
-  summaryParts.push(chronoEnabled ? `— Chrono ${chronoDuration}` : "— Sans chrono");
+  }, [allCards, selectedSections, selectedThemes, status, count, progress]);
 
   const startSession = () => {
     setPhase("session");
@@ -93,6 +112,7 @@ export default function Flashcards() {
   };
 
   const handleRate = (rating: Rating) => {
+    const card = sessionCards[currentIndex];
     const msg = rating === "incorrect" ? "Prochaine révision dans 1 jour"
       : rating === "correct" ? "Prochaine révision dans 7 jours"
       : "Prochaine révision dans 14 jours";
@@ -100,6 +120,15 @@ export default function Flashcards() {
     setRatings(prev => [...prev, rating]);
     setReviewMsg(msg);
     setExitDirection(-1);
+
+    if (user) {
+      saveRating.mutate({
+        userId: user.id,
+        flashcardId: card.id,
+        rating,
+        current: progress?.[card.id],
+      });
+    }
 
     setTimeout(() => {
       setReviewMsg(null);
@@ -113,7 +142,6 @@ export default function Flashcards() {
     }, 1000);
   };
 
-  // Chip component
   const Chip = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
     <button
       onClick={onClick}
@@ -129,7 +157,14 @@ export default function Flashcards() {
     </button>
   );
 
-  // DONE phase
+  if (loadingCards) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (phase === "done") {
     const incorrect = ratings.filter(r => r === "incorrect").length;
     const correct = ratings.filter(r => r === "correct").length;
@@ -155,7 +190,6 @@ export default function Flashcards() {
     );
   }
 
-  // SESSION phase
   if (phase === "session") {
     const card = sessionCards[currentIndex];
     if (!card) return null;
@@ -164,13 +198,11 @@ export default function Flashcards() {
 
     return (
       <div className="p-6 flex flex-col items-center">
-        {/* Counter */}
         <div className="text-sm text-muted-foreground mb-1 font-medium">{currentIndex + 1}/{sessionCards.length}</div>
         <div className="w-full max-w-[500px] h-1.5 bg-muted rounded-full mb-6 overflow-hidden">
           <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${((currentIndex + 1) / sessionCards.length) * 100}%` }} />
         </div>
 
-        {/* Review message */}
         <AnimatePresence>
           {reviewMsg && (
             <motion.div
@@ -184,19 +216,16 @@ export default function Flashcards() {
           )}
         </AnimatePresence>
 
-        {/* Card */}
         <AnimatePresence mode="wait">
           <motion.div
             key={card.id + (flipped ? "-back" : "-front")}
-            initial={{ opacity: 0, x: exitDirection * 60, rotateY: flipped ? 180 : 0 }}
-            animate={{ opacity: 1, x: 0, rotateY: 0 }}
+            initial={{ opacity: 0, x: exitDirection * 60 }}
+            animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -60 }}
             transition={{ duration: 0.35 }}
             className="w-full max-w-[500px] min-h-[280px] bg-card rounded-xl border border-border shadow-sm p-6 cursor-pointer flex flex-col"
             onClick={() => !flipped && setFlipped(true)}
-            style={{ perspective: 1000 }}
           >
-            {/* Badges */}
             <div className="flex items-center justify-between mb-4">
               {section && Icon && (
                 <div
@@ -209,7 +238,6 @@ export default function Flashcards() {
               <span className="text-xs text-muted-foreground">{card.theme}</span>
             </div>
 
-            {/* Content */}
             <div className="flex-1 flex items-center justify-center">
               {!flipped ? (
                 <p className="text-base font-medium text-center leading-relaxed">{card.front}</p>
@@ -226,32 +254,19 @@ export default function Flashcards() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Action buttons */}
         {flipped ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex gap-3 mt-4"
           >
-            <Button
-              onClick={() => handleRate("incorrect")}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              size="sm"
-            >
+            <Button onClick={() => handleRate("incorrect")} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground" size="sm">
               <X className="w-4 h-4 mr-1" /> Incorrect
             </Button>
-            <Button
-              onClick={() => handleRate("correct")}
-              className="bg-success hover:bg-success/90 text-success-foreground"
-              size="sm"
-            >
+            <Button onClick={() => handleRate("correct")} className="bg-success hover:bg-success/90 text-success-foreground" size="sm">
               <Check className="w-4 h-4 mr-1" /> Correct
             </Button>
-            <Button
-              onClick={() => handleRate("easy")}
-              variant="secondary"
-              size="sm"
-            >
+            <Button onClick={() => handleRate("easy")} variant="secondary" size="sm">
               <Zap className="w-4 h-4 mr-1" /> Facile
             </Button>
           </motion.div>
@@ -269,13 +284,13 @@ export default function Flashcards() {
     <div className="p-6 max-w-3xl">
       <h1 className="text-xl font-bold mb-2">Flashcards</h1>
 
-      {/* Badge */}
-      <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-bold mb-4">
-        <RotateCcw className="w-4 h-4" />
-        {deckStats.due} à réviser aujourd'hui
-      </div>
+      {deckStats.due > 0 && (
+        <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-bold mb-4">
+          <RotateCcw className="w-4 h-4" />
+          {deckStats.due} à réviser aujourd'hui
+        </div>
+      )}
 
-      {/* Stats row */}
       <div className="flex gap-3 mb-6 text-xs">
         {[
           { label: "Total", value: deckStats.total },
@@ -291,7 +306,6 @@ export default function Flashcards() {
       </div>
 
       <div className="bg-card rounded-xl border border-border p-4 space-y-4">
-        {/* Section chips */}
         <div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Sous-test</div>
           <div className="flex flex-wrap gap-2">
@@ -318,7 +332,6 @@ export default function Flashcards() {
           </div>
         </div>
 
-        {/* Theme chips */}
         <AnimatePresence>
           {availableThemes.length > 0 && (
             <motion.div
@@ -337,7 +350,6 @@ export default function Flashcards() {
           )}
         </AnimatePresence>
 
-        {/* Status */}
         <div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Statut</div>
           <div className="flex flex-wrap gap-2">
@@ -347,7 +359,6 @@ export default function Flashcards() {
           </div>
         </div>
 
-        {/* Count */}
         <div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Nombre de cartes</div>
           <div className="flex gap-2">
@@ -357,7 +368,6 @@ export default function Flashcards() {
           </div>
         </div>
 
-        {/* Timer */}
         <div>
           <div className="flex items-center gap-3 mb-2">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chrono</div>
@@ -382,9 +392,9 @@ export default function Flashcards() {
           </AnimatePresence>
         </div>
 
-        {/* Summary */}
         <div className="bg-muted/50 rounded-xl px-4 py-3 text-sm text-muted-foreground">
-          {summaryParts.join(" ")}
+          {sessionCards.length} carte{sessionCards.length > 1 ? "s" : ""} sélectionnée{sessionCards.length > 1 ? "s" : ""}
+          {selectedSections.size > 0 && ` · ${Array.from(selectedSections).map(s => sections.find(sec => sec.id === s)?.shortLabel).join(", ")}`}
         </div>
 
         <Button className="w-full" onClick={startSession} disabled={sessionCards.length === 0}>

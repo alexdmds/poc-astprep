@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/select";
 
 import { useQuestion, useUpsertQuestion } from "@/lib/queries/questions";
-import { useProducts } from "@/lib/queries/products";
 import { useSections } from "@/lib/queries/sections";
 import { useLessons } from "@/lib/queries/lessons";
 import { useThemes } from "@/lib/queries/themes";
@@ -58,7 +57,6 @@ export default function QuestionEditor() {
   const isEdit = !!id;
 
   const { data: question } = useQuestion(id ?? "");
-  const { data: products } = useProducts();
   const upsert = useUpsertQuestion();
 
   const form = useForm<FormValues>({
@@ -86,15 +84,13 @@ export default function QuestionEditor() {
     name: "choices",
   });
 
-  const productId = form.watch("product_id");
   const sectionId = form.watch("section_id");
   const watchedChoices = form.watch("choices");
   const watchedText = form.watch("text");
   const watchedCorrectAnswer = form.watch("correct_answer");
   const watchedExplanation = form.watch("explanation");
-  const isToeic = productId === "toeic";
 
-  const { data: sections } = useSections(productId);
+  const { data: sections } = useSections();
   const { data: lessons } = useLessons();
   const { data: themes } = useThemes(sectionId);
 
@@ -111,7 +107,7 @@ export default function QuestionEditor() {
 
       form.reset({
         id: question.id,
-        product_id: question.product_id,
+        product_id: "tage_mage",
         section_id: question.section_id,
         theme: question.theme,
         number: question.number ?? undefined,
@@ -141,9 +137,9 @@ export default function QuestionEditor() {
         correct_answer: values.correct_answer,
         explanation: values.explanation || "",
         difficulty: values.difficulty,
-        toeic_part: isToeic ? (values.toeic_part ?? null) : null,
-        micro_competence: isToeic ? (values.micro_competence || null) : null,
-        audio_url: isToeic ? (values.audio_url || null) : null,
+        toeic_part: null,
+        micro_competence: null,
+        audio_url: null,
         linked_lesson_id: values.linked_lesson_id || null,
       });
       toast.success("Enregistre !");
@@ -193,52 +189,26 @@ export default function QuestionEditor() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Produit *</Label>
-                    <Select
-                      value={productId}
-                      onValueChange={(v) => {
-                        form.setValue("product_id", v, { shouldValidate: true });
-                        form.setValue("section_id", "");
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choisir un produit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products?.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {form.formState.errors.product_id && (
-                      <p className="text-sm text-destructive">{form.formState.errors.product_id.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Section *</Label>
-                    <Select
-                      value={sectionId}
-                      onValueChange={(v) => form.setValue("section_id", v, { shouldValidate: true })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choisir une section" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sections?.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {form.formState.errors.section_id && (
-                      <p className="text-sm text-destructive">{form.formState.errors.section_id.message}</p>
-                    )}
-                  </div>
+                <div className="space-y-2">
+                  <Label>Section *</Label>
+                  <Select
+                    value={sectionId}
+                    onValueChange={(v) => form.setValue("section_id", v, { shouldValidate: true })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisir une section" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sections?.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.section_id && (
+                    <p className="text-sm text-destructive">{form.formState.errors.section_id.message}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -358,27 +328,6 @@ export default function QuestionEditor() {
                   <Label htmlFor="explanation">Explication</Label>
                   <Textarea id="explanation" rows={3} {...form.register("explanation")} />
                 </div>
-
-                {/* TOEIC-only fields */}
-                {isToeic && (
-                  <div className="space-y-4 border-t pt-4">
-                    <h3 className="font-semibold text-sm text-muted-foreground">Champs TOEIC</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="toeic_part">Part TOEIC</Label>
-                        <Input id="toeic_part" type="number" min={1} max={7} {...form.register("toeic_part")} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="micro_competence">Micro-competence</Label>
-                        <Input id="micro_competence" {...form.register("micro_competence")} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="audio_url">URL audio</Label>
-                      <Input id="audio_url" placeholder="https://..." {...form.register("audio_url")} />
-                    </div>
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <Label>Cours lie (optionnel)</Label>

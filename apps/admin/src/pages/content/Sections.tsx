@@ -8,13 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -32,7 +25,6 @@ import {
   useUpsertSection,
   useDeleteSection,
 } from "@/lib/queries/sections";
-import { useProducts } from "@/lib/queries/products";
 import type { Database } from "@/types/supabase";
 
 type Section = Database["public"]["Tables"]["sections"]["Row"];
@@ -41,7 +33,7 @@ const EMPTY_FORM = {
   id: "",
   label: "",
   short_label: "",
-  product_id: "",
+  product_id: "tage_mage",
   icon_name: "",
   color: "",
   hsl: "",
@@ -49,9 +41,7 @@ const EMPTY_FORM = {
 };
 
 export default function Sections() {
-  const [productId, setProductId] = useState<string | undefined>(undefined);
-  const { data: sections = [], isLoading } = useSections(productId);
-  const { data: products = [] } = useProducts();
+  const { data: sections = [], isLoading } = useSections();
   const upsertSection = useUpsertSection();
   const deleteSection = useDeleteSection();
 
@@ -93,14 +83,6 @@ export default function Sections() {
   const columns: ColumnDef<Section>[] = [
     { accessorKey: "label", header: "Label" },
     { accessorKey: "short_label", header: "Label court" },
-    {
-      accessorKey: "product_id",
-      header: "Produit",
-      cell: ({ row }) => {
-        const product = products.find((p) => p.id === row.original.product_id);
-        return product?.name ?? row.original.product_id;
-      },
-    },
     { accessorKey: "icon_name", header: "Icone" },
     {
       accessorKey: "color",
@@ -143,24 +125,7 @@ export default function Sections() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Sections" description="Gestion des sections par produit">
-        <Select
-          value={productId ?? "all"}
-          onValueChange={(v) => setProductId(v === "all" ? undefined : v)}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Produit" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous</SelectItem>
-            {products.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </PageHeader>
+      <PageHeader title="Sections" description="Gestion des sections" />
 
       <DataTable columns={columns} data={sections} isLoading={isLoading} />
 
@@ -194,24 +159,6 @@ export default function Sections() {
                   setEditForm({ ...editForm, short_label: e.target.value })
                 }
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Produit</Label>
-              <Select
-                value={editForm.product_id}
-                onValueChange={(v) => setEditForm({ ...editForm, product_id: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisir un produit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label>Icone</Label>

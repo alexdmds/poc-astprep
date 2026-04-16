@@ -1,12 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Play, Zap, Timer } from "lucide-react";
+import { Play, Zap, Timer, Loader2 } from "lucide-react";
 import { scoredSections } from "@/data/sections";
-import { themesBySection } from "@/data/stats";
 import { cn } from "@/lib/utils";
 import { QuizInterface } from "@/components/QuizInterface";
 import { CorrectionView } from "@/components/CorrectionView";
-import { calculQuestions, drillQuestions } from "@/data/questions";
+import { useQuestions } from "@/lib/queries/questions";
+import { useSaveQuizSession, useSaveQuizAnswers } from "@/lib/queries/quiz-sessions";
+import { useAddToErrorNotebook } from "@/lib/queries/error-notebook";
+import { useAuth } from "@/lib/auth";
 
 const questionCounts = ["5", "10", "15", "20", "Illimité"] as const;
 const difficulties = ["Facile", "Moyen", "Difficile"] as const;
@@ -36,6 +38,7 @@ const Chip = ({ label, active, onClick }: { label: string; active: boolean; onCl
 
 export default function Entrainement() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [selectedSection, setSelectedSection] = useState<string>(searchParams.get("section") || scoredSections[0].id);
   const [selectedThemes, setSelectedThemes] = useState<Set<string>>(() => {
@@ -47,6 +50,31 @@ export default function Entrainement() {
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [pageState, setPageState] = useState<PageState>("config");
   const [finalAnswers, setFinalAnswers] = useState<Record<string, string>>({});
+  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
+  const startedAtRef = useRef<string>(new Date().toISOString());
+
+  const { data: allSectionQuestions, isLoading } = useQuestions({ sectionId: selectedSection });
+
+  const availableThemes = useMemo(() => {
+    const themes = new Set<string>();
+    for (const q of allSectionQuestions ?? []) if (q.theme) themes.add(q.theme);
+    return Array.from(themes).sort();
+  }, [allSectionQuestions]);
+
+  const filteredQuestions = useMemo(() => {
+    const limit = questionCount === "Illimité" ? 999 : parseInt(questionCount);
+    return (allSectionQuestions ?? [])
+      .filter(q => {
+        if (selectedThemes.size > 0 && !selectedThemes.has(q.theme)) return false;
+        if (selectedDifficulties.size > 0 && !selectedDifficulties.has(q.difficulty)) return false;
+        return true;
+      })
+      .slice(0, limit);
+  }, [allSectionQuestions, selectedThemes, selectedDifficulties, questionCount]);
+
+  const saveSession = useSaveQuizSession();
+  const saveAnswers = useSaveQuizAnswers();
+  const addToErrorNotebook = useAddToErrorNotebook();
 
   const toggleSet = (set: Set<string>, val: string) => {
     const next = new Set(set);
@@ -55,23 +83,60 @@ export default function Entrainement() {
     return next;
   };
 
-  const availableThemes = (themesBySection[selectedSection] || []).map(t => t.name);
-
-  const allQuestions = [...calculQuestions, ...drillQuestions];
-  const filteredQuestions = allQuestions
-    .filter(q => {
-      if (q.section !== selectedSection) return false;
-      if (selectedThemes.size > 0 && !selectedThemes.has(q.theme)) return false;
-      if (selectedDifficulties.size > 0 && !selectedDifficulties.has(q.difficulty)) return false;
-      return true;
-    })
-    .slice(0, questionCount === "Illimité" ? 999 : parseInt(questionCount));
-
-  const handleFinish = useCallback((answers: Record<string, string>) => {
+  const handleFinish = useCallback(async (answers: Record<string, string>, flagged: Set<string>) => {
     setFinalAnswers(answers);
+    setFlaggedIds(flagged);
     setPageState("done");
     window.scrollTo(0, 0);
-  }, []);
+
+    if (!user) return;
+
+    const correctCount = filteredQuestions.filter(q => answers[q.id] === q.correctAnswer).length;
+    const score = correctCount * 4;
+
+    try {
+      const sessionId = await saveSession.mutateAsync({
+        userId: user.id,
+        type: "training",
+        sectionId: selectedSection,
+        score,
+        correctCount,
+        totalCount: filteredQuestions.length,
+        maxScore: filteredQuestions.length * 4,
+        startedAt: startedAtRef.current,
+      });
+
+      await saveAnswers.mutateAsync(
+        filteredQuestions.map(q => ({
+          sessionId,
+          questionId: q.id,
+          userAnswer: answers[q.id] ?? null,
+          isCorrect: answers[q.id] === q.correctAnswer,
+          isFlagged: flagged.has(q.id),
+        }))
+      );
+
+      // Ajouter les mauvaises réponses au carnet d'erreurs
+      const wrong = filteredQuestions.filter(q => answers[q.id] && answers[q.id] !== q.correctAnswer);
+      for (const q of wrong) {
+        addToErrorNotebook.mutate({
+          userId: user.id,
+          questionId: q.id,
+          sectionId: selectedSection,
+          theme: q.theme,
+          studentAnswer: answers[q.id],
+          sessionId,
+        });
+      }
+    } catch {
+      // Sauvegarde échouée silencieusement — l'expérience utilisateur n'est pas bloquée
+    }
+  }, [filteredQuestions, selectedSection, user, saveSession, saveAnswers, addToErrorNotebook]);
+
+  const handleStartQuiz = () => {
+    startedAtRef.current = new Date().toISOString();
+    setPageState("quiz");
+  };
 
   if (pageState === "quiz") {
     return (
@@ -123,7 +188,7 @@ export default function Entrainement() {
         </div>
 
         {/* Thèmes */}
-        {availableThemes.length > 0 && (
+        {!isLoading && availableThemes.length > 0 && (
           <div>
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Thèmes <span className="font-normal">(optionnel — tous par défaut)</span>
@@ -187,20 +252,25 @@ export default function Entrainement() {
 
         {/* Résumé */}
         <div className="bg-muted/50 rounded-xl px-4 py-3 text-sm text-muted-foreground">
-          {filteredQuestions.length} question{filteredQuestions.length > 1 ? "s" : ""} disponibles
-          {selectedThemes.size > 0 && ` · ${Array.from(selectedThemes).join(", ")}`}
-          {selectedDifficulties.size > 0 && ` · ${Array.from(selectedDifficulties).join(", ")}`}
-          {selectedDuration !== null && ` · ${selectedDuration} min`}
-          {selectedDuration === null && ""}
+          {isLoading ? (
+            <span className="flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Chargement des questions…</span>
+          ) : (
+            <>
+              {filteredQuestions.length} question{filteredQuestions.length > 1 ? "s" : ""} disponibles
+              {selectedThemes.size > 0 && ` · ${Array.from(selectedThemes).join(", ")}`}
+              {selectedDifficulties.size > 0 && ` · ${Array.from(selectedDifficulties).join(", ")}`}
+              {selectedDuration !== null && ` · ${selectedDuration} min`}
+            </>
+          )}
         </div>
 
         {/* CTA */}
         <button
-          onClick={() => filteredQuestions.length > 0 && setPageState("quiz")}
-          disabled={filteredQuestions.length === 0}
+          onClick={() => filteredQuestions.length > 0 && handleStartQuiz()}
+          disabled={filteredQuestions.length === 0 || isLoading}
           className={cn(
             "w-full rounded-xl px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2",
-            filteredQuestions.length > 0
+            filteredQuestions.length > 0 && !isLoading
               ? "bg-primary text-primary-foreground hover:bg-primary/90"
               : "bg-muted text-muted-foreground cursor-not-allowed"
           )}

@@ -65,17 +65,17 @@ export default function SubtestEditor() {
   // Question assignment state
   const [assignedQuestionIds, setAssignedQuestionIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [poolSectionFilter, setPoolSectionFilter] = useState("");
+  const [poolSectionFilter, setPoolSectionFilter] = useState("__all__");
 
   // Use the subtest's section_id as default pool filter
   useEffect(() => {
-    if (sectionId && !poolSectionFilter) {
+    if (sectionId && poolSectionFilter === "__all__") {
       setPoolSectionFilter(sectionId);
     }
   }, [sectionId, poolSectionFilter]);
 
   const { data: questionsData } = useQuestions({
-    sectionId: poolSectionFilter || undefined,
+    sectionId: poolSectionFilter === "__all__" ? undefined : poolSectionFilter,
     search: searchQuery || undefined,
   });
 
@@ -325,7 +325,7 @@ export default function SubtestEditor() {
                     <SelectValue placeholder="Toutes sections" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Toutes</SelectItem>
+                    <SelectItem value="__all__">Toutes</SelectItem>
                     {sections?.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.label}

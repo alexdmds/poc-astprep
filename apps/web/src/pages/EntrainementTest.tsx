@@ -1,65 +1,145 @@
-import { useState, useCallback, useMemo } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useState, useCallback, useRef } from "react";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, Loader2 } from "lucide-react";
 import { QuizInterface } from "@/components/QuizInterface";
 import { CorrectionView } from "@/components/CorrectionView";
 import { PersonalBestScreen } from "@/components/PersonalBestScreen";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { calculQuestions } from "@/data/questions";
+import { useSubtestQuestions } from "@/lib/queries/questions";
+import { useSubtest } from "@/lib/queries/subtests";
+import { useSaveQuizSession, useSaveQuizAnswers } from "@/lib/queries/quiz-sessions";
+import { useAddToErrorNotebook } from "@/lib/queries/error-notebook";
+import { useAuth } from "@/lib/auth";
 
 type Phase = "test" | "personal-best" | "summary-full" | "correction";
 
-const PREVIOUS_RECORD = 38;
-
-interface Notion { name: string; correct: number; total: number; slug: string; }
-
-export default function Entrainement() {
+export default function EntrainementTest() {
   const navigate = useNavigate();
+  const { testId: subtestId } = useParams<{ testId: string }>();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const startWithCorrection = searchParams.get("correction") === "true";
+
   const [phase, setPhase] = useState<Phase>(startWithCorrection ? "correction" : "test");
   const [finalAnswers, setFinalAnswers] = useState<Record<string, string>>({});
+  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
   const [summaryExpanded, setSummaryExpanded] = useState(true);
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+  const startedAtRef = useRef<string>(new Date().toISOString());
 
-  const handleFinish = useCallback((answers: Record<string, string>) => {
-    setFinalAnswers(answers);
-    const correctCount = calculQuestions.filter(q => answers[q.id] === q.correctAnswer).length;
-    const score = correctCount * 4;
-    setPhase(score > PREVIOUS_RECORD ? "personal-best" : "summary-full");
-    window.scrollTo(0, 0);
-  }, []);
+  const { data: subtest, isLoading: loadingSubtest } = useSubtest(subtestId ?? "");
+  const { data: questions, isLoading: loadingQuestions } = useSubtestQuestions(subtestId ?? "");
 
-  const correctCount = calculQuestions.filter(q => finalAnswers[q.id] === q.correctAnswer).length;
+  const saveSession = useSaveQuizSession();
+  const saveAnswers = useSaveQuizAnswers();
+  const addToErrorNotebook = useAddToErrorNotebook();
+
+  const correctCount = (questions ?? []).filter(q => finalAnswers[q.id] === q.correctAnswer).length;
   const score = correctCount * 4;
-  const notions = useMemo(() => [
-    { name: "Probabilités conditionnelles", correct: 1, total: 3, slug: "probabilites-conditionnelles" },
-    { name: "Géométrie dans l'espace", correct: 1, total: 2, slug: "geometrie-espace" },
-    { name: "Dénombrement", correct: 0, total: 2, slug: "denombrement" },
-  ], []);
+  const maxScore = (questions ?? []).length * 4;
 
-  const weakThemes = notions.filter(n => (n.correct / n.total) < 0.6);
-  const feedbackType = score > PREVIOUS_RECORD ? "record" : score >= PREVIOUS_RECORD - 4 ? "progress" : "decline";
+  // Thèmes faibles pour le debrief
+  const themeStats: Record<string, { correct: number; total: number }> = {};
+  for (const q of questions ?? []) {
+    if (!themeStats[q.theme]) themeStats[q.theme] = { correct: 0, total: 0 };
+    themeStats[q.theme].total++;
+    if (finalAnswers[q.id] === q.correctAnswer) themeStats[q.theme].correct++;
+  }
+  const weakThemes = Object.entries(themeStats)
+    .filter(([, s]) => s.total > 0 && s.correct / s.total < 0.6)
+    .map(([name, s]) => ({ name, ...s }));
 
+  const feedbackType = score >= maxScore * 0.7 ? "record" : score >= maxScore * 0.5 ? "progress" : "decline";
   const feedbackMessages: Record<string, string> = {
-    record: "Bravo, c'est ton meilleur score sur ce type ! Continue sur cette lancée.",
-    progress: "Tu progresses — +4 points vs ta moyenne. Continue comme ça !",
-    decline: "Session difficile — c'est normal, ça fait partie du processus. L'important c'est de retravailler les notions ci-dessous.",
-    first: "Première session terminée ! Tu as une base de référence maintenant.",
+    record: "Excellent score ! Continue sur cette lancée.",
+    progress: "Tu progresses — bon travail !",
+    decline: "Session difficile — c'est normal. L'important c'est de retravailler les notions ci-dessous.",
   };
+
+  const handleFinish = useCallback(async (answers: Record<string, string>, flagged: Set<string>) => {
+    setFinalAnswers(answers);
+    setFlaggedIds(flagged);
+    setPhase("summary-full");
+    window.scrollTo(0, 0);
+
+    if (!user || !questions?.length) return;
+
+    const correct = questions.filter(q => answers[q.id] === q.correctAnswer).length;
+    const sc = correct * 4;
+
+    try {
+      const sessionId = await saveSession.mutateAsync({
+        userId: user.id,
+        type: "subtest",
+        sectionId: subtest?.section_id,
+        subtestId: subtestId,
+        score: sc,
+        correctCount: correct,
+        totalCount: questions.length,
+        maxScore: questions.length * 4,
+        startedAt: startedAtRef.current,
+      });
+
+      setSavedSessionId(sessionId);
+
+      await saveAnswers.mutateAsync(
+        questions.map(q => ({
+          sessionId,
+          questionId: q.id,
+          userAnswer: answers[q.id] ?? null,
+          isCorrect: answers[q.id] === q.correctAnswer,
+          isFlagged: flagged.has(q.id),
+        }))
+      );
+
+      // Ajouter les mauvaises réponses au carnet d'erreurs
+      const wrong = questions.filter(q => answers[q.id] && answers[q.id] !== q.correctAnswer);
+      for (const q of wrong) {
+        addToErrorNotebook.mutate({
+          userId: user.id,
+          questionId: q.id,
+          sectionId: subtest?.section_id ?? "",
+          theme: q.theme,
+          studentAnswer: answers[q.id],
+          sessionId,
+        });
+      }
+    } catch {
+      // Sauvegarde échouée silencieusement
+    }
+  }, [questions, subtest, subtestId, user, saveSession, saveAnswers, addToErrorNotebook]);
 
   const handleLaunchTraining = () => {
-    const themeParams = weakThemes.map(n => n.slug).join(",");
-    navigate(`/generateur?section=calcul&theme=${themeParams}`);
+    const section = subtest?.section_id ?? "";
+    const themes = weakThemes.map(n => n.name).join(",");
+    navigate(`/generateur?section=${section}&theme=${themes}`);
   };
+
+  if (loadingSubtest || loadingQuestions) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!subtest || !questions?.length) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <p className="text-muted-foreground">Ce sous-test n'existe pas ou ne contient aucune question.</p>
+        <Button variant="outline" onClick={() => navigate(-1)}>Retour</Button>
+      </div>
+    );
+  }
 
   if (phase === "test") {
     return (
       <QuizInterface
-        title="Calcul — Sous-test #12"
-        questions={calculQuestions}
-        timerSeconds={20 * 60}
+        title={subtest.title}
+        questions={questions}
+        timerSeconds={subtest.duration_minutes * 60}
         immediateCorrection={false}
         onFinish={handleFinish}
       />
@@ -70,15 +150,14 @@ export default function Entrainement() {
     return (
       <PersonalBestScreen
         newScore={score}
-        maxScore={60}
-        oldRecord={PREVIOUS_RECORD}
-        subtitle={`${correctCount}/${calculQuestions.length} bonnes réponses`}
+        maxScore={maxScore}
+        oldRecord={0}
+        subtitle={`${correctCount}/${questions.length} bonnes réponses`}
         onContinue={() => { setPhase("summary-full"); window.scrollTo(0, 0); }}
       />
     );
   }
 
-  // Full-screen debrief
   if (phase === "summary-full") {
     return (
       <motion.div
@@ -90,14 +169,13 @@ export default function Entrainement() {
         <div className="max-w-lg w-full">
           <div className="text-center mb-6">
             <div className="text-3xl font-bold">
-              {score}<span className="text-lg text-muted-foreground font-normal">/{60}</span>
+              {score}<span className="text-lg text-muted-foreground font-normal">/{maxScore}</span>
             </div>
             <div className="text-sm text-muted-foreground mt-1">
-              {correctCount}/{calculQuestions.length} bonnes réponses
+              {correctCount}/{questions.length} bonnes réponses
             </div>
           </div>
 
-          {/* Global debrief */}
           <div className="bg-card rounded-xl border border-border p-5 mb-6">
             <h3 className="text-sm font-semibold mb-3">Ton bilan</h3>
             <p className="text-sm text-muted-foreground mb-4">{feedbackMessages[feedbackType]}</p>
@@ -140,10 +218,9 @@ export default function Entrainement() {
     );
   }
 
-  // Correction phase: compact summary on top + correction below
+  // Correction phase
   return (
     <div>
-      {/* Compact summary card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: -10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -156,10 +233,10 @@ export default function Entrainement() {
         >
           <div className="flex items-center gap-4">
             <div className="text-2xl font-bold">
-              {score}<span className="text-sm text-muted-foreground font-normal">/{60}</span>
+              {score}<span className="text-sm text-muted-foreground font-normal">/{maxScore}</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              {correctCount}/{calculQuestions.length} bonnes réponses
+              {correctCount}/{questions.length} bonnes réponses
             </div>
           </div>
           {summaryExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
@@ -209,7 +286,7 @@ export default function Entrainement() {
       </motion.div>
 
       <CorrectionView
-        questions={calculQuestions}
+        questions={questions}
         answers={finalAnswers}
         showScoreSummary={false}
         onBack={() => navigate("/")}
