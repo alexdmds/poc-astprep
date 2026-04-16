@@ -135,6 +135,7 @@ export default function Chapters() {
             ))}
           </SelectContent>
         </Select>
+        <Button onClick={() => openEdit()}>Nouveau chapitre</Button>
       </PageHeader>
 
       <DataTable
