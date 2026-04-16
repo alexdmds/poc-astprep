@@ -3,9 +3,10 @@ import {
   LayoutDashboard, BookOpen, Dumbbell, FileText, RotateCcw,
   BarChart3, Route, Layers, Wrench, ChevronDown,
   LayoutGrid, Calculator, BookOpenText, Video, PanelLeftClose,
-  Headphones, Target, GraduationCap
+  Headphones, Target, GraduationCap, LogOut
 } from "lucide-react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 // ── TAGE MAGE navigation ──
@@ -88,6 +89,7 @@ interface AppSidebarProps {
 export function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { signOut } = useAuth();
   const [productOpen, setProductOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
@@ -284,8 +286,18 @@ export function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium truncate">Thomas L.</div>
         </div>
-        <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full",
-          isToeic ? "bg-sky-500 text-white" : "bg-primary text-primary-foreground")}>Pro</span>
+        <button
+          onClick={async () => {
+            await signOut();
+            localStorage.clear();
+            window.location.href = "/onboarding";
+          }}
+          className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          aria-label="Se deconnecter"
+          title="Se deconnecter"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
     </aside>
   );
