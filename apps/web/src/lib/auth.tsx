@@ -6,9 +6,11 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, metadata?: Record<string, unknown>) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, metadata?: Record<string, unknown>) => Promise<{ error: Error | null; session: Session | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  resetPasswordForEmail: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,12 +37,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, metadata?: Record<string, unknown>) => {
-    const { error } = await supabase.auth.signUp({
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: metadata },
+      options: {
+        data: metadata,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
-    return { error };
+    return { error, session: data.session };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -50,10 +55,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    const ONBOARDING_KEYS = [
+      "onboarding-user", "onboarding-step", "onboarding-profil", "onboarding-plan",
+      "bienvenue-step", "toeic-onboarding-step", "toeic-bienvenue-step",
+      "onboarding-complete", "bienvenue-complete",
+      "toeic-onboarding-complete", "toeic-bienvenue-complete",
+    ];
+    ONBOARDING_KEYS.forEach(k => localStorage.removeItem(k));
+  };
+
+  const resetPasswordForEmail = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+    });
+    return { error };
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error };
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, resetPasswordForEmail, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

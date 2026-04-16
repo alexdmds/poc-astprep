@@ -293,7 +293,6 @@ export function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
         <button
           onClick={async () => {
             await signOut();
-            localStorage.clear();
             window.location.href = "/login";
           }}
           className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"

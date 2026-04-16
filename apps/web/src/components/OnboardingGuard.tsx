@@ -2,7 +2,16 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/use-profile";
 
-const PUBLIC_PATHS = ["/login", "/onboarding", "/bienvenue", "/toeic/onboarding", "/toeic/bienvenue"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/auth/callback",
+  "/forgot-password",
+  "/reset-password",
+  "/onboarding",
+  "/bienvenue",
+  "/toeic/onboarding",
+  "/toeic/bienvenue",
+];
 
 function isPublic(path: string) {
   return PUBLIC_PATHS.some(p => path === p || path.startsWith(p + "/"));
