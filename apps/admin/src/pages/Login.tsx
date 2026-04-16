@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +15,7 @@ import {
 } from "@/components/ui/card";
 
 export default function Login() {
-  const { user, isAdmin, signIn, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
+  const { user, signIn, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,21 +28,15 @@ export default function Login() {
     );
   }
 
-  if (user && isAdmin) {
-    return <Navigate to="/" replace />;
-  }
+  if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const { error } = await signIn(email, password);
-    setLoading(false);
     if (error) {
-      toast.error("Erreur de connexion", {
-        description: error.message,
-      });
-    } else {
-      navigate("/");
+      setLoading(false);
+      toast.error("Erreur de connexion : " + error.message);
     }
   };
 
@@ -80,7 +73,7 @@ export default function Login() {
               />
             </div>
             <Button type="submit" disabled={loading} className="w-full">
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Se connecter
             </Button>
           </form>
