@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -21,10 +22,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   useSections,
   useUpsertSection,
   useDeleteSection,
 } from "@/lib/queries/sections";
+import { useProducts } from "@/lib/queries/products";
 import type { Database } from "@/types/supabase";
 
 type Section = Database["public"]["Tables"]["sections"]["Row"];
@@ -33,7 +42,7 @@ const EMPTY_FORM = {
   id: "",
   label: "",
   short_label: "",
-  product_id: "tage_mage",
+  product_id: "",
   icon_name: "",
   color: "",
   hsl: "",
@@ -42,6 +51,7 @@ const EMPTY_FORM = {
 
 export default function Sections() {
   const { data: sections = [], isLoading } = useSections();
+  const { data: products = [] } = useProducts();
   const upsertSection = useUpsertSection();
   const deleteSection = useDeleteSection();
 
@@ -68,8 +78,22 @@ export default function Sections() {
   }
 
   function handleSave() {
+    if (!editForm.id.trim()) {
+      toast.error("L'ID est obligatoire");
+      return;
+    }
+    if (!editForm.product_id) {
+      toast.error("Le produit est obligatoire");
+      return;
+    }
     upsertSection.mutate(editForm, {
-      onSuccess: () => setEditOpen(false),
+      onSuccess: () => {
+        setEditOpen(false);
+        toast.success("Section enregistrée");
+      },
+      onError: (err) => {
+        toast.error("Erreur : " + (err as Error).message);
+      },
     });
   }
 
@@ -125,7 +149,9 @@ export default function Sections() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Sections" description="Gestion des sections" />
+      <PageHeader title="Sections" description="Gestion des sections">
+        <Button onClick={() => openEdit()}>Nouvelle section</Button>
+      </PageHeader>
 
       <DataTable columns={columns} data={sections} isLoading={isLoading} />
 
@@ -143,6 +169,24 @@ export default function Sections() {
                 value={editForm.id}
                 onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Produit</Label>
+              <Select
+                value={editForm.product_id}
+                onValueChange={(v) => setEditForm({ ...editForm, product_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un produit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Label</Label>
