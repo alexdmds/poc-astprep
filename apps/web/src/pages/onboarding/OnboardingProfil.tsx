@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ const ANGLAIS_OPTIONS = ["TOEIC", "TOEFL", "IELTS", "Pas encore"] as const;
 
 export default function OnboardingProfil() {
   const navigate = useNavigate();
+  const { updateProfile } = useProfile();
   const [ecole, setEcole] = useState("");
   const [ecoleAutre, setEcoleAutre] = useState("");
   const [ecoleOpen, setEcoleOpen] = useState(false);
@@ -37,14 +39,16 @@ export default function OnboardingProfil() {
 
   const sliderCfg = getSliderConfig();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    const schoolValue = ecole === "Autre" ? ecoleAutre : ecole;
     localStorage.setItem("onboarding-profil", JSON.stringify({
-      ecole: ecole === "Autre" ? ecoleAutre : ecole,
+      ecole: schoolValue,
       tmScore: hasTM ? tmScore : null,
       anglais,
       anglaisScore: sliderCfg ? anglaisScore[0] : null,
     }));
     localStorage.setItem("onboarding-step", "tour");
+    try { await updateProfile({ school: schoolValue }); } catch (_) {}
     navigate("/onboarding/tour");
   };
 

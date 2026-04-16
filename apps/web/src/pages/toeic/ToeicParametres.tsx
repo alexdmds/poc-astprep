@@ -4,20 +4,25 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/lib/auth";
 
-const sections = [
-  { title: "Profil", content: "Email : thomas@email.com · Prénom : Thomas · Nom : L." },
-  { title: "Apparence", content: "toggle" },
-  { title: "Notifications", content: "toggles" },
-  { title: "Score estimé", content: "link" },
-  { title: "Compte", content: "Se déconnecter · Supprimer mon compte" },
-];
+const SECTION_TITLES = ["Profil", "Apparence", "Notifications", "Score estimé", "Compte"];
 
 export default function ToeicParametres() {
   const navigate = useNavigate();
+  const { profile } = useProfile();
+  const { user } = useAuth();
   const [open, setOpen] = useState<string | null>("Profil");
   const [darkMode, setDarkMode] = useState(true);
   const [notifs, setNotifs] = useState({ cours: true, defis: true, rappels: false });
+
+  const sections = SECTION_TITLES.map(title => ({
+    title,
+    content: title === "Profil"
+      ? `Email : ${profile?.email ?? user?.email ?? "—"} · Nom : ${profile?.full_name ?? "—"}`
+      : "",
+  }));
 
   return (
     <div className="p-6 py-8 max-w-xl mx-auto space-y-4">

@@ -28,6 +28,7 @@ import Parametres from "./pages/Parametres";
 import Classement from "./pages/Classement";
 import ToeicDashboard from "./pages/ToeicDashboard";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
 
 // Onboarding TAGE
 import OnboardingLayout from "./pages/onboarding/OnboardingLayout";
@@ -88,6 +89,9 @@ const App = () => (
       <BrowserRouter>
         <OnboardingGuard>
           <Routes>
+            {/* Auth */}
+            <Route path="/login" element={<Login />} />
+
             {/* TAGE Onboarding pre-payment */}
             <Route element={<OnboardingLayout />}>
               <Route path="/onboarding" element={<OnboardingCompte />} />

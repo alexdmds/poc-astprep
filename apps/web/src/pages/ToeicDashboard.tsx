@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { DailyChallengePopup } from "@/components/DailyChallengePopup";
 import { motion } from "framer-motion";
+import { useProfile } from "@/hooks/use-profile";
 
 const sectionScores = [
   { name: "P1", score: 82 }, { name: "P2", score: 68 }, { name: "P3", score: 74 },
@@ -45,6 +46,7 @@ const toeicChallenges = [
 
 export default function ToeicDashboard() {
   const navigate = useNavigate();
+  const { profile } = useProfile();
   const [challengeOpen, setChallengeOpen] = useState(false);
 
   useEffect(() => {
@@ -67,7 +69,13 @@ export default function ToeicDashboard() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold">Thomas, objectif 900/990 dans 34 jours !</h1>
+          <h1 className="text-xl font-bold">
+            {profile?.full_name?.split(" ")[0] ?? "Bienvenue"},{" "}
+            objectif {profile?.target_score ?? "—"}/990{" "}
+            {profile?.exam_date
+              ? `dans ${Math.max(0, Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000))} jours !`
+              : "!"}
+          </h1>
           <p className="text-sm text-muted-foreground mt-0.5">Continue comme ça, tu progresses bien.</p>
         </div>
         <div className="flex items-center gap-1">

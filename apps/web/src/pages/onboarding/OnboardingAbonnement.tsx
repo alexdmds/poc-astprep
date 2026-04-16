@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
@@ -14,13 +15,15 @@ const PLANS = [
 
 export default function OnboardingAbonnement() {
   const navigate = useNavigate();
+  const { updateProfile } = useProfile();
   const [selected, setSelected] = useState("month");
   const [installments, setInstallments] = useState(false);
   const [accepted, setAccepted] = useState(false);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     localStorage.setItem("onboarding-plan", selected);
     localStorage.setItem("onboarding-step", "paiement");
+    try { await updateProfile({ subscription_plan: selected }); } catch (_) {}
     navigate("/onboarding/paiement");
   };
 

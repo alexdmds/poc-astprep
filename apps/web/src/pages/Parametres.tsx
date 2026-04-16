@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 import { PersonalRecords } from "@/components/PersonalRecords";
 import { ChallengeLeaderboard } from "@/components/ChallengeLeaderboard";
+import { useProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/lib/auth";
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="mb-6">
@@ -25,6 +27,8 @@ const Row = ({ icon: Icon, label, children, danger }: { icon: any; label: string
 
 export default function Parametres() {
   const { theme, toggle } = useTheme();
+  const { profile } = useProfile();
+  const { user } = useAuth();
   const darkMode = theme === "dark";
   const [notifEmail, setNotifEmail] = useState(true);
   const [notifPush, setNotifPush] = useState(true);
@@ -36,10 +40,10 @@ export default function Parametres() {
 
       <Section title="Profil">
         <Row icon={User} label="Nom">
-          <span className="text-sm text-muted-foreground">Thomas L.</span>
+          <span className="text-sm text-muted-foreground">{profile?.full_name ?? "—"}</span>
         </Row>
         <Row icon={Globe} label="Email">
-          <span className="text-sm text-muted-foreground">thomas@email.com</span>
+          <span className="text-sm text-muted-foreground">{profile?.email ?? user?.email ?? "—"}</span>
         </Row>
         <Row icon={Shield} label="Mot de passe">
           <button className="text-xs text-primary font-medium hover:underline">Modifier</button>

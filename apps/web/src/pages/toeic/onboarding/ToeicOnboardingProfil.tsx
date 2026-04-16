@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,15 +13,23 @@ const schools = ["HEC","ESSEC","ESCP","emlyon","EDHEC","SKEMA","Audencia","Greno
 
 export default function ToeicOnboardingProfil() {
   const navigate = useNavigate();
+  const { updateProfile } = useProfile();
   const [school, setSchool] = useState("");
   const [examDate, setExamDate] = useState<Date | undefined>(undefined);
   const [hours, setHours] = useState([10]);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     localStorage.setItem("toeic-school", school);
     if (examDate) localStorage.setItem("toeic-exam-date", examDate.toISOString());
     localStorage.setItem("toeic-hours-week", String(hours[0]));
     localStorage.setItem("toeic-onboarding-step", "objectif");
+    try {
+      await updateProfile({
+        school,
+        exam_date: examDate ? examDate.toISOString() : null,
+        hours_per_week: hours[0],
+      });
+    } catch (_) {}
     navigate("/toeic/onboarding/objectif");
   };
 

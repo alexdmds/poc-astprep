@@ -1,18 +1,44 @@
 import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
+import { useProfile } from "@/hooks/use-profile";
+
+const PUBLIC_PATHS = ["/login", "/onboarding", "/bienvenue", "/toeic/onboarding", "/toeic/bienvenue"];
+
+function isPublic(path: string) {
+  return PUBLIC_PATHS.some(p => path === p || path.startsWith(p + "/"));
+}
 
 export function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const path = location.pathname;
+  const { user, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
+
+  // Public routes — always pass through
+  if (isPublic(path)) {
+    return <>{children}</>;
+  }
+
+  // Still loading auth/profile
+  if (authLoading || (user && profileLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // No session → redirect to login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   // TOEIC routes
   if (path.startsWith("/toeic")) {
-    // Allow onboarding/bienvenue through
-    if (path.startsWith("/toeic/onboarding") || path.startsWith("/toeic/bienvenue")) {
-      return <>{children}</>;
-    }
-
-    const onboardingComplete = localStorage.getItem("toeic-onboarding-complete") === "true";
-    const bienvenueComplete = localStorage.getItem("toeic-bienvenue-complete") === "true";
+    const onboardingComplete =
+      profile?.toeic_onboarding_complete ?? localStorage.getItem("toeic-onboarding-complete") === "true";
+    const bienvenueComplete =
+      profile?.toeic_bienvenue_complete ?? localStorage.getItem("toeic-bienvenue-complete") === "true";
 
     if (!onboardingComplete) {
       const step = localStorage.getItem("toeic-onboarding-step");
@@ -34,13 +60,11 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // TAGE routes — allow onboarding/bienvenue through
-  if (path.startsWith("/onboarding") || path.startsWith("/bienvenue")) {
-    return <>{children}</>;
-  }
-
-  const onboardingComplete = localStorage.getItem("onboarding-complete") === "true";
-  const bienvenueComplete = localStorage.getItem("bienvenue-complete") === "true";
+  // TAGE routes
+  const onboardingComplete =
+    profile?.onboarding_complete ?? localStorage.getItem("onboarding-complete") === "true";
+  const bienvenueComplete =
+    profile?.bienvenue_complete ?? localStorage.getItem("bienvenue-complete") === "true";
 
   if (!onboardingComplete) {
     const step = localStorage.getItem("onboarding-step");

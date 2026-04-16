@@ -3,12 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function OnboardingCompte() {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
   const [form, setForm] = useState({ email: "", prenom: "", nom: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -20,8 +24,22 @@ export default function OnboardingCompte() {
     return Object.keys(e).length === 0;
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!validate()) return;
+    setServerError(null);
+    setLoading(true);
+    const { error } = await signUp(form.email, form.password, {
+      full_name: `${form.prenom} ${form.nom}`,
+    });
+    setLoading(false);
+    if (error) {
+      setServerError(
+        error.message.includes("already registered")
+          ? "Cet email est déjà utilisé"
+          : "Une erreur est survenue, réessaie"
+      );
+      return;
+    }
     localStorage.setItem("onboarding-user", JSON.stringify(form));
     localStorage.setItem("onboarding-step", "profil");
     navigate("/onboarding/profil");
@@ -63,11 +81,14 @@ export default function OnboardingCompte() {
         </div>
       </div>
 
-      <Button onClick={handleContinue} className="w-full py-3">Continuer</Button>
+      {serverError && <p className="text-xs text-destructive">{serverError}</p>}
+      <Button onClick={handleContinue} disabled={loading} className="w-full py-3">
+        {loading ? "Création du compte..." : "Continuer"}
+      </Button>
 
       <p className="text-sm text-center">
         Déjà un compte ?{" "}
-        <button className="text-primary underline" onClick={() => navigate("/")}>Se connecter</button>
+        <button className="text-primary underline" onClick={() => navigate("/login")}>Se connecter</button>
       </p>
     </div>
   );

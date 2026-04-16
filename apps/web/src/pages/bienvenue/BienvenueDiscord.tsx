@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Video, Users } from "lucide-react";
 
@@ -11,10 +12,12 @@ const PERKS = [
 
 export default function BienvenueDiscord() {
   const navigate = useNavigate();
+  const { updateProfile } = useProfile();
   const [joined, setJoined] = useState(false);
 
-  const finish = () => {
+  const finish = async () => {
     localStorage.setItem("bienvenue-complete", "true");
+    try { await updateProfile({ bienvenue_complete: true }); } catch (_) {}
     navigate("/");
   };
 

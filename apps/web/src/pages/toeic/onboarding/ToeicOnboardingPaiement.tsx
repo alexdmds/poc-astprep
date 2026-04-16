@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Lock, Loader2, Star, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -20,12 +21,14 @@ const FEATURES = [
 
 export default function ToeicOnboardingPaiement() {
   const navigate = useNavigate();
+  const { updateProfile } = useProfile();
   const [loading, setLoading] = useState(false);
 
   const handlePay = () => {
     setLoading(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       localStorage.setItem("toeic-onboarding-complete", "true");
+      try { await updateProfile({ toeic_onboarding_complete: true, current_product: "toeic" }); } catch (_) {}
       navigate("/toeic/bienvenue");
     }, 1500);
   };

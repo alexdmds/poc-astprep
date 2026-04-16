@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 
 // ── TAGE MAGE navigation ──
@@ -90,6 +91,7 @@ export function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut } = useAuth();
+  const { profile } = useProfile();
   const [productOpen, setProductOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
@@ -282,15 +284,17 @@ export function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
       {/* User */}
       <div className="px-4 py-4 border-t border-border flex items-center gap-3">
         <div className={cn("w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm",
-          isToeic ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary")}>T</div>
+          isToeic ? "bg-sky-500/10 text-sky-500" : "bg-primary/10 text-primary")}>
+          {profile?.full_name?.[0]?.toUpperCase() ?? "?"}
+        </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">Thomas L.</div>
+          <div className="text-sm font-medium truncate">{profile?.full_name ?? "—"}</div>
         </div>
         <button
           onClick={async () => {
             await signOut();
             localStorage.clear();
-            window.location.href = "/onboarding";
+            window.location.href = "/login";
           }}
           className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
           aria-label="Se deconnecter"

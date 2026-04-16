@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { motion } from "framer-motion";
@@ -15,12 +16,14 @@ function getCECRL(score: number) {
 
 export default function ToeicOnboardingObjectif() {
   const navigate = useNavigate();
+  const { updateProfile } = useProfile();
   const [target, setTarget] = useState([750]);
   const cecrl = getCECRL(target[0]);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     localStorage.setItem("toeic-target-score", String(target[0]));
     localStorage.setItem("toeic-onboarding-step", "paiement");
+    try { await updateProfile({ target_score: target[0] }); } catch (_) {}
     navigate("/toeic/onboarding/paiement");
   };
 

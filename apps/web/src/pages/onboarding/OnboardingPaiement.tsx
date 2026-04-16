@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Lock, Loader2, CreditCard } from "lucide-react";
 
 export default function OnboardingPaiement() {
   const navigate = useNavigate();
+  const { updateProfile } = useProfile();
   const [loading, setLoading] = useState(false);
   const [card, setCard] = useState("");
   const [expM, setExpM] = useState("");
@@ -19,9 +21,10 @@ export default function OnboardingPaiement() {
 
   const handleConfirm = () => {
     setLoading(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       localStorage.setItem("onboarding-complete", "true");
       localStorage.setItem("onboarding-step", "bienvenue");
+      try { await updateProfile({ onboarding_complete: true }); } catch (_) {}
       navigate("/bienvenue");
     }, 1500);
   };

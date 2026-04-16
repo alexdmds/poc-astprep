@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Star, Quote } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/auth";
 
 const TESTIMONIALS = [
   { name: "Léa M.", score: "860/990", school: "ESSEC", text: "J'ai gagné 200 points en 2 mois grâce à ASTPrep. La méthode par Parts est top !", avatar: "L" },
@@ -13,10 +14,13 @@ const TESTIMONIALS = [
 
 export default function ToeicOnboardingCompte() {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
   const [form, setForm] = useState({ email: "", prenom: "", nom: "", password: "" });
   const [showPwd, setShowPwd] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -28,8 +32,22 @@ export default function ToeicOnboardingCompte() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
+    setServerError(null);
+    setLoading(true);
+    const { error } = await signUp(form.email, form.password, {
+      full_name: `${form.prenom} ${form.nom}`,
+    });
+    setLoading(false);
+    if (error) {
+      setServerError(
+        error.message.includes("already registered")
+          ? "Cet email est déjà utilisé"
+          : "Une erreur est survenue, réessaie"
+      );
+      return;
+    }
     localStorage.setItem("toeic-onboarding-step", "profil");
     navigate("/toeic/onboarding/profil");
   };
@@ -98,8 +116,11 @@ export default function ToeicOnboardingCompte() {
               {errors.password && <span className="text-xs text-destructive mt-1">{errors.password}</span>}
             </div>
           </div>
-          <Button onClick={handleSubmit} className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white">Continuer</Button>
-          <p className="text-sm text-center text-muted-foreground">Déjà un compte ? <a href="/onboarding" className="text-sky-500 underline">Se connecter</a></p>
+          {serverError && <p className="text-xs text-destructive">{serverError}</p>}
+          <Button onClick={handleSubmit} disabled={loading} className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white">
+            {loading ? "Création du compte..." : "Continuer"}
+          </Button>
+          <p className="text-sm text-center text-muted-foreground">Déjà un compte ? <button onClick={() => navigate("/login")} className="text-sky-500 underline">Se connecter</button></p>
         </div>
       </div>
     </div>

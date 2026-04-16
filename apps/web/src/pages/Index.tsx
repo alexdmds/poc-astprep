@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { DailyChallengePopup } from "@/components/DailyChallengePopup";
+import { useProfile } from "@/hooks/use-profile";
 
 const SmallCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <div className={`bg-card rounded-xl border border-border p-4 hover:shadow-sm transition-shadow ${className}`}>
@@ -33,6 +34,7 @@ const Sparkline = ({ data }: { data: number[] }) => (
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { profile } = useProfile();
   const [challengeOpen, setChallengeOpen] = useState(false);
 
   useEffect(() => {
@@ -73,7 +75,12 @@ export default function Dashboard() {
         onViewLeaderboard={() => navigate("/classement")}
       />
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">Thomas, il te reste 21 jours avant ton examen !</h1>
+        <h1 className="text-xl font-bold">
+          {profile?.full_name?.split(" ")[0] ?? "Bienvenue"},{" "}
+          {profile?.exam_date
+            ? `il te reste ${Math.max(0, Math.ceil((new Date(profile.exam_date).getTime() - Date.now()) / 86400000))} jours avant ton examen !`
+            : "bonne préparation !"}
+        </h1>
         <div className="flex items-center gap-1">
           <Popover>
             <PopoverTrigger asChild>
