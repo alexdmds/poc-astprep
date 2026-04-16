@@ -1,0 +1,213 @@
+ASTPrep V3 — Roadmap produit détaillée,,,,,
+Annexe contrat développement — Chaque feature a une description précise + critères d'évaluation mesurables,,,,,
+,,,,,
+Feature,Description (ce qui doit être construit),Critères d'évaluation (comment vérifier que c'est réussi),Impact,Lot,Période
+LOT 1 — FONDATIONS & ARCHITECTURE (Avril–Mai),,,,,
+"Architecture multi-produits
+(Layout, Sidebar, Routing)","Layout React avec sidebar fixe 240px + zone de contenu principale. Sidebar : logo ASTPrep, sélecteur produit dropdown (TAGE MAGE actif, TOEIC cliquable, Oraux/Dossier grisés badge 'Bientôt'), menu organisé en 3 groupes (Apprentissage / Sous-tests / Outils), avatar + badge Pro en bas. Routing React Router v6 avec 20 routes. Thème dark/light via CSS variables HSL.","• La sidebar s'affiche sur toutes les pages, lien actif surligné
+• Le sélecteur produit switch entre TAGE MAGE et TOEIC (dashboards séparés)
+• Les 20 routes sont navigables sans erreur 404
+• Le dark mode fonctionne sur toutes les pages sans texte illisible
+• La sidebar se rétracte via le bouton toggle
+• Chaque groupe de menu est visuellement séparé",Élevé,Lot 1,Avr–Mai
+"Dashboard TAGE MAGE
+(Bento grid + popup défi)","Page d'accueil grille bento 4 colonnes. Cards : courbe progression TM blancs (AreaChart), score estimé 387/600 avec tooltip FAQ + sparkline, temps semaine, programme du jour (3 activités cliquables → /parcours), cours live du soir, streak + 'Top X% de la plateforme', erreurs à réviser avec badge. Popup défi du jour (2 défis + points + lien classement) s'ouvre 1x/jour via localStorage.","• Toutes les cards bento sont visibles sans scroll sur 1440×900
+• Le popup défi du jour s'ouvre 1 seule fois par jour (vérifié via localStorage)
+• Le tooltip du score estimé affiche l'explication + lien FAQ
+• Clic sur 'Programme du jour' navigue vers /parcours
+• Clic sur 'Erreurs à réviser' navigue vers /carnet
+• Les graphiques Recharts s'affichent avec données mockées
+• Le streak affiche le pourcentage de la plateforme",Élevé,Lot 1,Avr–Mai
+"Bibliothèque de cours
+(Catalogue + page leçon)","CATALOGUE : nav horizontale sticky 7 onglets (Stratégie, Compréh., Calcul, R&A, CM, Expression, Logique) avec icône Lucide + couleur par section + trait animé Framer Motion. Chapitres en accordéon avec indicateur statut (terminé/en cours/pas commencé), barre progression, liste leçons dépliable.
+PAGE LEÇON : vidéo placeholder pleine largeur, sous la vidéo : prof + speed selector + méta. 4 onglets (Transcript, Notes, Drill, Ask an Expert). Le transcript s'ouvre en dessous, les 3 autres en panneau latéral droit (la vidéo se réduit à 55%). Drill = 5 QCM avec correction. Ask an Expert = mini-forum mocké. Feedback thumbs up/down + favori.","• Les 7 sections s'affichent avec icônes et couleurs correctes
+• Le trait animé se déplace au changement d'onglet
+• Les accordéons s'ouvrent/ferment avec animation
+• Les leçons terminées sont barrées/grisées
+• Le clic sur une leçon ouvre la modale avec bouton 'Regarder'
+• La page leçon charge la vidéo placeholder + les 4 onglets fonctionnent
+• Le panneau latéral s'ouvre sans cacher la vidéo (vidéo réduite à 55%)
+• Le drill affiche 5 questions avec correction immédiate
+• Les notes sont éditables avec sauvegarde (localStorage)
+• Navigation 'Cours suivant/précédent' fonctionne",Élevé,Lot 1,Avr–Mai
+"Cours Live
+(Session du soir + replays)","Page avec card mise en avant du cours du soir (badge 'En direct', prof, horaire, boutons rejoindre/calendrier/sujet). Liste des replays avec thumbnail, titre, section, prof, date.","• La card du cours live affiche les bonnes infos
+• Le bouton 'Rejoindre' ouvre un lien externe
+• Les replays sont listés avec les métadonnées
+• Le lien depuis le dashboard fonctionne",Moyen,Lot 1,Avr–Mai
+"LOT 2 — ENTRAÎNEMENT, SOUS-TESTS & CARNET (Mai–Juin)",,,,,
+"Catalogue de sous-tests
+(Bibliothèque d'exercices)","Nav horizontale sticky 6 sections (sans Stratégie). Toggle Généralistes/Thématiques. Cards par sous-test : icône statut, titre, nb questions, durée, score/60 si fait (couleur vert/orange/rouge), moyenne ASTPrep, boutons Lancer/Correction.","• Les 6 sections s'affichent avec icônes correctes
+• Le toggle Généralistes/Thématiques filtre la liste
+• Les sous-tests faits affichent le score /60 avec la bonne couleur
+• Les sous-tests non faits affichent le bouton 'Lancer'
+• Le bouton 'Correction' navigue vers la page correction
+• La moyenne ASTPrep est affichée sous le score",Élevé,Lot 2,Mai–Juin
+"Interface de quiz
+(Composant réutilisable)","Composant QuizInterface utilisé par sous-tests, entraînement et carnet. Header sticky : titre + chrono (rouge si <60s). Grille de 15 pastilles numérotées (couleur = répondu/flaggé/non répondu/actif). Zone question : numéro, texte, 5 choix QCM en boutons full-width, bouton flag, navigation ←→. Bouton Soumettre avec warning si questions sans réponse. Soumission auto à 0:00.","• Le chrono décompte en temps réel et passe en rouge sous 60s
+• Les pastilles changent de couleur quand on répond
+• Le flag toggle fonctionne (pastille jaune)
+• On peut naviguer entre les questions via les pastilles et les flèches
+• Le bouton Soumettre affiche un warning si des questions sont vides
+• La soumission auto se déclenche à 0:00
+• Le composant accepte les props : title, questions, timerSeconds, immediateCorrection",Critique,Lot 2,Mai–Juin
+"Écran Personal Best
+(Animation record battu)","Écran interstitiel conditionnel (s'affiche uniquement si score > record précédent). Animation : compteur qui défile de 0 au score en 1.5s, badge 'Nouveau record !' avec Trophy en scale-in, confettis (10 particules), comparaison ancien/nouveau record, bouton 'Voir la correction'.","• L'écran s'affiche UNIQUEMENT si le score bat le record
+• Le compteur anime de 0 au score en ~1.5s
+• Les confettis s'affichent pendant ~2s
+• L'ancien et le nouveau record sont comparés
+• Le bouton navigue vers la correction
+• Si ce n'est PAS un record, cet écran est sauté",Moyen,Lot 2,Mai–Juin
+"Mini-fenêtre post-exercice
+(Debrief avant correction)","Écran intermédiaire entre la soumission et la correction. Score en grand (X/60 + bonnes réponses). Card '3 notions à travailler' avec nom, ratio, couleur rouge/orange. Micro-feedback adaptatif (1 phrase selon contexte : record, progrès, baisse, 1ère session). Bouton principal 'Afficher la correction'. Lien retour dashboard.","• Le score s'affiche correctement (/60 pour sous-tests, /600 pour TM blancs)
+• Les 3 notions faibles sont identifiées et affichées avec code couleur
+• Le message de feedback est adapté au contexte (4 cas)
+• Le bouton 'Afficher la correction' navigue vers la correction
+• Cet écran apparaît APRÈS le Personal Best (si applicable) et AVANT la correction",Élevé,Lot 2,Mai–Juin
+"Correction View
+(Composant réutilisable)","Composant CorrectionView. Bandeau collapsible avec score + notions faibles + bouton 'Lancer un entraînement personnalisé' (pré-remplit le générateur). Pastilles de navigation vert/rouge. Par question : texte, choix avec bordure vert/rouge, badge 'Ta réponse', explication, placeholder correction vidéo, transcript toggle, Ask an Expert, catégorisation d'erreur (5 chips optionnels), flag. Bloc 'Pour progresser' en fin (cours à revoir + exercices suggérés).","• La navigation par pastilles fonctionne
+• Les bonnes réponses sont en vert, les mauvaises en rouge
+• L'explication s'affiche pour chaque question
+• Le placeholder vidéo affiche le nom du prof
+• La catégorisation d'erreur enregistre le choix (localStorage)
+• Le bloc 'Pour progresser' affiche des liens cliquables
+• Le bouton 'Entraînement personnalisé' navigue vers /generateur avec les thèmes pré-cochés",Critique,Lot 2,Mai–Juin
+"Tests blancs TAGE MAGE
+(Catalogue + résultats)","CATALOGUE : 3 KPIs en haut (TM faits, meilleur score, moyenne). Grille 4 colonnes de cards : 20 classiques + 6 mensuels (Sept→Fév). Chaque card : titre, score/600 si fait, boutons Commencer/Correction.
+RÉSULTATS POST-TM : écran chargement animé (barre 0-100%), score héro + 'Top X%', courbe en cloche (distribution gaussienne), détail par sous-test (6 barres vs moyenne), card partage Discord, CTAs correction/retour.","• Les 26 cards s'affichent en grille 4 colonnes
+• Les TM faits affichent le score, les non faits le bouton Commencer
+• Les mensuels ont un badge mois
+• L'écran de chargement post-TM anime la barre de progression
+• Le score héro s'affiche avec le percentile
+• La courbe en cloche se dessine avec le score de l'élève positionné
+• Le détail par sous-test montre les 6 barres avec comparaison moyenne
+• Le bouton 'Partager sur Discord' est présent",Élevé,Lot 2,Mai–Juin
+"Carnet d'erreurs
+(Générateur + révision espacée)","Layout 2 colonnes. GAUCHE : générateur avec chips sous-test (compteur erreurs), difficulté, thèmes dynamiques, nombre questions, chrono toggle + durée/question. Résumé dynamique + CTA. Quiz en mode correction immédiate. DROITE : pie chart répartition erreurs, 4 métriques (total/à réviser/acquises/en cours), info répétition espacée. LISTE COMPLÈTE : tableau avec toutes les erreurs, filtrable, suppression possible.","• Les chips sous-test affichent le nombre d'erreurs
+• Les thèmes s'adaptent au sous-test sélectionné
+• Le toggle chrono fait apparaître les options de durée
+• Le résumé se met à jour en temps réel
+• La session utilise la correction immédiate (pas de soumission à la fin)
+• Le pie chart s'affiche avec les bonnes données
+• L'info répétition espacée (J+1 → J+7 → sort) est visible
+• Le tableau liste toutes les erreurs avec bouton supprimer fonctionnel",Critique,Lot 2,Mai–Juin
+"Générateur d'entraînement
+(Sessions personnalisées)","Formulaire avec chips : sous-test (mono-sélection), thèmes (multi, dynamiques), difficulté (multi), durée, nombre de questions. Résumé dynamique. CTA 'Lancer'. Pré-remplissage via URL (?section=calcul&theme=X) depuis les stats ou le debrief. Lance QuizInterface + CorrectionView.","• Tous les filtres fonctionnent et se combinent
+• Le résumé affiche le nombre de questions disponibles
+• Le pré-remplissage via URL fonctionne depuis /statistiques
+• Le CTA est disabled si 0 questions
+• La session lance QuizInterface puis CorrectionView",Élevé,Lot 2,Mai–Juin
+"Lien correction → cours
+(Sur toutes les corrections)","Sur chaque question corrigée (sous-tests, TM blancs, carnet, entraînement) : lien vers la leçon associée. Dans le bloc 'Pour progresser' en fin de session : liste des cours à revoir avec liens cliquables.","• Chaque question corrigée a un lien 'Revoir le cours' qui navigue vers /cours/:lessonId
+• Le bloc 'Pour progresser' en fin de session liste les cours pertinents
+• Les liens ne sont PAS affichés inline pendant la correction (seulement en fin de session)",Critique,Lot 2,Mai–Juin
+"LOT 3 — STATS, PARCOURS, OUTILS (Juin–Juillet)",,,,,
+"Statistiques
+(KPIs + graphiques + thèmes + records)","Header avec filtre temporel (Tout/Semaine/30j/Depuis dernier TM). 4 KPIs en grille. Graphique principal 2 onglets (TM blancs AreaChart / Par sous-test BarChart). Section 'Mes records' : 7 cards PB (6 sous-tests + TM blanc) avec badge 'Nouveau !' si <7j. Détail par thème : 6 boutons section avec icône, le thème actif affiche les barres % triées + bouton 'S'entraîner →'. Historique des questions avec filtres (recherche, sous-test, thème, difficulté, statut). Heatmap d'activité style GitHub/Strava.","• Le filtre temporel change visuellement l'état actif
+• Les 4 KPIs s'affichent avec les bonnes valeurs
+• Les 2 onglets du graphique switchent sans erreur
+• La section 'Mes records' affiche les 7 PB avec badge si récent
+• Les 6 boutons de section changent le détail par thème
+• Les barres sont triées par % croissant (plus faible en haut)
+• Le bouton 'S'entraîner →' navigue vers /generateur?section=X&theme=Y
+• L'historique des questions se filtre correctement
+• La heatmap affiche 4-6 semaines avec intensité de couleur",Élevé,Lot 3,Juin–Juil.
+"Parcours adaptatif
+(Timeline + calendrier + personnalisation)","Bannière coaching conditionnelle (si heures < objectif). Header avec toggle Liste/Calendrier + bouton Personnaliser. Barre progression (43%, score estimé, objectif). VUE LISTE : pagination semaine ←→, timeline verticale centrée, jours alternés gauche/droite, points colorés (primary=aujourd'hui, vert=fait, rouge=manqué, gris=futur), cards avec activités. VUE CALENDRIER : grille mensuelle + détails jour sélectionné. MODALE : heures/jour (7 inputs), objectif score (slider 200-600), date examen (date picker), bouton Regénérer.","• La bannière coaching apparaît si heures < objectif
+• Le toggle Liste/Calendrier switch la vue
+• La pagination semaine fonctionne
+• Les points de la timeline ont les bonnes couleurs selon le statut
+• Les activités manquées sont en rouge (icône AlertCircle)
+• La vue calendrier affiche les jours avec indicateurs colorés
+• La modale Personnaliser s'ouvre avec les valeurs pré-remplies
+• Le slider objectif score va de 200 à 600
+• Le bouton Regénérer affiche un spinner puis ferme la modale",Élevé,Lot 3,
+"Flashcards
+(Config + flip Anki)","Header avec badge dues + 4 stats (total, maîtrisées, apprentissage, nouvelles). Formulaire : chips sous-test (icône section), thèmes dynamiques avec compteur, statut, nombre, chrono toggle + durée/carte. Résumé + CTA. Session : compteur X/Y + barre progression, carte flip 3D (face question → dos réponse), badges section + thème, 3 boutons (Incorrect rouge / Correct vert / Facile), message 'Prochaine révision dans X jours' animé. Résultat : stats + boutons.","• Les chips sous-test affichent les icônes de section
+• Les thèmes s'adaptent dynamiquement
+• Le chrono toggle fait apparaître les options de durée
+• La carte flip anime en 3D (rotateY)
+• Les 3 boutons enregistrent l'évaluation
+• Le message de prochaine révision s'affiche 1s
+• Le résultat affiche le décompte Facile/Correct/Incorrect
+• La session se termine correctement après la dernière carte",Élevé,Lot 3,Juin–Juil.
+"Calcul mental
+(Session chrono + classement)","Config : chips opération (Add/Sous/Mult/Mixte), difficulté (Facile 1-20 / Moyen 10-100 / Difficile 50-500), durée (1/2/5 min). CTA + classement filtrable. Session mode focus : timer décomptant, opération en text-5xl, input numérique auto-focus, flash vert/rouge, compteur bonnes réponses. Timer pause si onglet inactif (visibilitychange). Résultat : score + record + boutons.","• Les opérations générées correspondent à la difficulté choisie
+• Le timer décompte et s'arrête à 0
+• L'input a le focus automatiquement et le re-prend après chaque réponse
+• Le flash vert (300ms) et rouge (1s avec bonne réponse) fonctionnent
+• Le timer se met en pause quand l'onglet est inactif
+• Le classement se filtre côté client quand on change les chips
+• Le record est sauvegardé (localStorage) et affiché",Moyen,Lot 3,Juin–Juil.
+"Lecture alphabétique
+(Session chrono + classement)","Même structure que calcul mental. Config : nb lettres (1/2/3), durée (2/5/10 min). Session : lettres en text-7xl (1) / text-5xl (2-3), inputs de rang côte à côte, tab pour naviguer. Classement filtrable.","• Les lettres sont tirées aléatoirement A-Z
+• Le nombre d'inputs correspond au mode choisi (1, 2 ou 3)
+• Tab navigue entre les inputs
+• Flash vert/rouge fonctionne
+• Le classement se filtre correctement",Moyen,Lot 3,Juin–Juil.
+"Fiches PDF
+(Bibliothèque par section)","Nav horizontale sticky 6 sections. Liste de fiches par section : icône FileText (couleur section) dans carré 36×36 bg-couleur/10, titre, description, bouton Download ghost.","• Les 6 sections s'affichent avec icônes et couleurs correctes
+• Les fiches sont listées avec titre + description
+• Le bouton Download est cliquable (placeholder)
+• Le trait animé se déplace au changement de section",Moyen,Lot 3,Juin–Juil.
+"Intégration Discord
+(CTAs, bannière, cours live)",Bannière sidebar si non connecté Discord. Lien Discord dans Ask an Expert. Section cours live sur le dashboard. Lien Discord dans le récap post-session. Bouton partage Discord dans les résultats TM blanc.,"• La bannière Discord est visible dans la sidebar
+• Le lien 'Rejoindre Discord' dans Ask an Expert fonctionne
+• Le cours du soir est affiché sur le dashboard
+• Le bouton 'Partager sur Discord' est présent dans les résultats TM
+• Les liens ouvrent un lien externe",Moyen,Lot 3,Juin–Juil.
+"Classement des défis
+(Mensuel + trimestriel)","Page /classement : header + card position élève + tabs Mois/Trimestre + podium top 3 (colonnes hauteurs différentes) + tableau complet avec rang, pseudo, points, défis. Ligne élève en bg-primary/5.","• Les 2 onglets Mois/Trimestre switchent les données
+• Le podium affiche les 3 premiers avec médailles
+• Le tableau affiche 10+ entrées
+• La ligne de l'élève est surlignée
+• Les données sont mockées de façon réaliste",Moyen,Lot 3,Juin–Juil.
+LOT 4 — GO LIVE TAGE MAGE (Août),,,,,
+"Notifications
+(Page + dropdown)","Page /notifications : liste typée (live/score/reminder/streak/info) avec icône colorée, titre, description, timestamp, bordure gauche si non lue, bouton 'Tout marquer comme lu'. Dropdown depuis le dashboard : popover 360px, 3-4 dernières, pastille rouge, lien 'Voir toutes'.","• Les 5 types de notification ont chacun leur icône et couleur
+• Les non lues ont une bordure gauche visible
+• Le bouton 'Tout marquer comme lu' fonctionne
+• Le dropdown depuis le dashboard affiche les dernières notifs
+• La pastille rouge indique le nombre de non lues",Moyen,Lot 4,Août
+"Paramètres
+(Profil + préférences)","Sections : Profil (nom, email, mdp), Apparence (toggle dark mode), Notifications (3 toggles), Score estimé (lien FAQ), Compte (déconnexion). Personal Records intégré. Lien classement.","• Le toggle dark mode fonctionne et persiste (localStorage)
+• Les toggles notifications sont interactifs
+• Le lien FAQ navigue vers /faq-score
+• Le bouton déconnexion est visible
+• Les records personnels s'affichent",Moyen,Lot 4,Août
+FAQ Score estimé,"Page /faq-score : bouton retour, explication du calcul (3 derniers TM, pondération, déflation), card avec les 3 TM utilisés + scores.","• Le texte explicatif est clair et complet
+• La card affiche les 3 TM blancs utilisés pour le calcul
+• Le bouton retour fonctionne",Moyen,Lot 4,Août
+Dark mode complet,"Toutes les pages fonctionnent en dark mode. Toggle dans les paramètres et/ou header. Couleurs : bg sombre, texte blanc, bordures visibles, couleurs de section désaturées.","• Passer chaque page en dark mode et vérifier : texte lisible, bordures visibles, graphiques lisibles, chips visibles
+• Le toggle persiste au rechargement
+• Aucun texte gris sur fond gris foncé",Moyen,Lot 4,Août
+Accessibilité de base,Contraste ≥4.5:1 sur le corps de texte. Focus rings visibles sur tous les interactifs. aria-label sur boutons icon-only. aria-pressed sur chips. Touch targets ≥44px. prefers-reduced-motion respecté.,"• Tester le contraste avec un outil (ex: axe-core)
+• Naviguer au clavier sur chaque page : le focus est visible
+• Les boutons sans texte ont un aria-label
+• Les chips ont aria-pressed
+• Aucun élément cliquable n'est plus petit que 44px",Élevé,Lot 4,Août
+LOT 5 — TOEIC V1 (Sept–Oct.),,,,,
+Dashboard TOEIC,"Même structure bento que TAGE MAGE mais accent sky-500. Cards : progression TOEIC blancs (500-990), score estimé /990, split Listening/Reading, suggestions du jour, temps semaine, streak, score par section (7 barres Parts 1-7), points faibles avec bouton 'S'entraîner'.","• Le switch TAGE→TOEIC dans la sidebar change le dashboard
+• L'accent visuel est sky-500 (pas violet)
+• Les cards affichent des données TOEIC réalistes
+• La navigation TOEIC est différente de TAGE MAGE
+• Les graphiques fonctionnent avec le bon domaine (500-990)",Très élevé,Lot 5,Sept–Oct.
+"Contenu TOEIC
+(Cours + exercices + blancs)","Infrastructure partagée avec TAGE MAGE (mêmes composants QuizInterface, CorrectionView, etc.). Navigation TOEIC : Listening Parts 1-4, Reading Parts 5-7. Cours structurés par compétence. Mock tests TOEIC. Flashcards vocabulaire business. Grammar drills.","• Les cours TOEIC utilisent le même composant que TAGE mais avec contenu TOEIC
+• La navigation TOEIC affiche Listening + Reading
+• Les mock tests TOEIC fonctionnent
+• Les flashcards vocabulaire sont filtrables par thème
+• Le carnet d'erreurs fonctionne pour le TOEIC",Très élevé,Lot 5,Sept–Oct.
+"LOT 6 — GAMIFICATION, DOPAMINE & COACHING PERSONNALISÉ",,,,,
+Streak + Top X%,"Sous le chiffre du streak sur le dashboard, ajouter ""Top 12% de la plateforme"" en text-xs muted. Icône flamme pulse subtil si streak > 7j.",Le pourcentage s'affiche sous le streak. Le pulse s'active au-dessus de 7 jours.,Très élevé,Lot 6,Août
+Personal Best — section Stats,"Section ""Mes records"" dans /statistiques : 7 cards (6 sous-tests + TM blanc) avec meilleur score, date, badge ""Nouveau !"" si < 7 jours.","Les 7 PB s'affichent. Le badge ""Nouveau !"" apparaît si le record date de moins de 7 jours.",Très élevé,Lot 6,Août
+Personal Best — animation post-exercice,"Écran interstitiel conditionnel (score > record). Compteur animé 0→score en 1.5s (easing exponentiel). Badge ""Nouveau record !"" scale-in + Trophy. Confettis 10 particules violet+or 2s. Comparaison ancien/nouveau.",S'affiche UNIQUEMENT si record battu. Compteur anime. Confettis visibles. Si pas record → écran sauté.,Élevé,Lot 6,Août
+Mini-fenêtre debrief,"Écran entre soumission et correction : score en grand, 3 notions à travailler (nom + ratio + couleur rouge/orange), micro-feedback 1 phrase adaptée (record / progrès / baisse / 1ère session), bouton ""Afficher la correction"".",Les 3 notions faibles sont identifiées. Le message change selon le contexte (4 cas). Le bouton navigue vers la correction.,Élevé,Lot 6,Août
+Popup défi du jour,"Dialog 1x/jour. 2 défis personnalisés (1 sous-test basé sur les faiblesses + 1 outil). Points par défi (15 + 10). Compteur mensuel. Lien classement. ""Pas maintenant"" pour fermer.",S'ouvre 1 seule fois/jour (localStorage). Les 2 défis sont cliquables. Le compteur de points est visible.,Élevé,Lot 6,Août
+Classement des défis,"Page /classement : position élève, tabs Mois/Trimestre, podium top 3 (colonnes hauteurs différentes, médailles or/argent/bronze), tableau 10+ entrées, ligne élève surlignée, écart avec le suivant.","Les 2 onglets switchent. Le podium affiche le top 3. L'écart est affiché (""Plus que 23 pts pour monter"").",Élevé,Lot 6,Août
+Célébrations post-session,"Messages contextuels après chaque session terminée : record battu, meilleur score all-time, sans faute drill, streak maintenu, carnet du jour vidé. Bannière bg-primary/5, disparaît après 5s ou au clic.",Le bon message s'affiche selon le contexte. La bannière disparaît après 5s. Pas de célébration si rien de spécial.,Moyen,Lot 6,Août
+Bannière coaching parcours,"Bannière conditionnelle dans /parcours si heures faites < objectif. Sem 1-2 : bienveillant (""On peut adapter ton planning""). Sem 3+ : direct (""Il faut accélérer""). Boutons Personnaliser + Ignorer. Jamais de blocage.",La bannière apparaît si heures < objectif. Le ton change après 3 semaines. Le bouton Personnaliser ouvre la modale. Ignorer masque la bannière.,Moyen,Lot 6,Août
+Activités manquées dans le parcours,"Jours passés avec activités non faites : point rouge sur la timeline, activités avec icône AlertCircle rouge. Pas de texte culpabilisant.",Les points rouges s'affichent sur les jours manqués. Les activités non faites ont l'indicateur rouge. Aucun message de culpabilisation.,Moyen,Lot 6,Août
+Heatmap d'activité (Strava),"Section dans /statistiques : grille 4-6 semaines, chaque jour = carré coloré par intensité d'étude (muted → primary/20 → primary/40 → primary/60 → primary). Légende ""Moins ◻◻◻◻◻ Plus"".",La heatmap affiche les bonnes semaines. L'intensité de couleur correspond au temps passé. La légende est visible.,Moyen,Lot 6,Août
+Feedback positif dans les corrections,"Bloc ""Pour progresser"" en fin de session reformulé en suggestions positives. ""On te recommande de revoir la Géométrie"" (pas ""Tu as raté""). Cours à revoir + exercices suggérés.",Les suggestions sont formulées positivement. Les liens cours et exercices sont cliquables.,Élevé,Lot 6,Août
+Partage Discord post-TM blanc,"Card attestation dans les résultats TM blanc : trophy + nom test + score + percentile + date. Boutons ""Partager sur Discord"" (couleur #5865F2) + ""Télécharger"".",La card attestation s'affiche. Le bouton partage est en couleur Discord.,Moyen,Lot 6,Août
