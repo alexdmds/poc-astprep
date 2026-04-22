@@ -4,227 +4,169 @@
 
 ---
 
-## Nos choix techniques en un coup d'œil
+## Ce que nos choix techniques permettent d'éviter
 
-Avant de détailler la roadmap, voici les grandes orientations que nous proposons. Elles visent toutes le même objectif : **livrer vite, sans réinventer la roue**.
+La roadmap initiale était pensée autour d'un backend Symfony sur serveur dédié. En passant sur une stack React + Supabase et en s'appuyant sur des services "sur étagère", on évite une quantité de travail significative — du code qui n'a aucune valeur pédagogique pour les utilisateurs mais qui prend du temps et introduit des risques.
 
-### Ce qu'on délègue aux plateformes spécialisées
-
-| Domaine | Outil retenu | Pourquoi |
+| Ce que Symfony aurait exigé | Ce qu'on fait à la place | Temps économisé |
 |---|---|---|
-| **Vidéo** | **Mux** | Standard du marché, signed URLs, upload direct, analytics — on ne se pose pas la question |
-| **Paiement** | **Stripe natif** | On délègue ~90% du travail à Stripe (voir ci-dessous) |
-| **Emails transactionnels** | **Resend** | API moderne, simple, gratuit jusqu'à 3 000 emails/mois |
-| **Tâches planifiées (crons)** | **Supabase Pro** | Natif à notre infrastructure, zéro service supplémentaire |
+| Backend applicatif complet (serveur, Docker, déploiement Scaleway) | Vercel + Supabase hébergé — zéro infra à gérer | Plusieurs jours |
+| Interface de paiement, upgrade/downgrade, annulation, gestion CB | **Stripe Customer Portal** (page hébergée Stripe clé en main) | 3–4 jours |
+| Logique de renouvellement, retry en cas d'échec, emails de relance | **Stripe Billing** (natif Stripe) | 2–3 jours |
+| Entité PromoCode custom avec CRUD admin | **Coupons Stripe** (gérés dans le dashboard Stripe) | 1 jour |
+| Logique anti-chevauchement d'abonnements | Configuration native Stripe (1 abo actif par produit) | 0,5 jour |
+| Service de crons externe | **pg_cron Supabase Pro** (crons directement en base de données) | 1 jour |
+| Anti multi-connexions (middleware interceptant chaque requête) | **Reporté V2** — risque inexistant au lancement | 2–3 jours |
+| Intégration CRM Attio | **Reporté V2** — export Supabase Studio suffit pour < 1 000 users | 1–2 jours |
 
-### Pourquoi Stripe natif change tout
-
-Plutôt que de coder une logique de facturation complexe, on s'appuie sur les outils Stripe existants :
-
-- **Stripe Checkout** — page de paiement hébergée par Stripe, zéro interface à développer
-- **Stripe Customer Portal** — page autonome où l'utilisateur gère seul son abonnement : changement de formule, annulation, mise à jour de carte bancaire, téléchargement des factures PDF
-- **Stripe Billing** — renouvellements automatiques, relances intelligentes en cas d'échec de paiement
-- **Stripe Tax** (optionnel) — calcul automatique de la TVA selon le pays de l'utilisateur, indispensable pour un SaaS européen
-- **Coupons & codes promo Stripe** — créés directement dans le tableau de bord Stripe, sans développement spécifique
-
-Cela réduit de moitié l'effort sur la partie monétisation.
+**Total estimé économisé : 10 à 15 jours de développement**, réaffectables directement sur les fonctionnalités métier.
 
 ---
 
-## Indicateurs de difficulté
+## Comment lire la roadmap
+
+La roadmap est organisée en **jalons techniques** plutôt qu'en liste de features isolées. Chaque jalon correspond à un bloc cohérent qui peut être livré, testé et validé indépendamment. Les jalons sont séquentiels : chacun débloque le suivant.
+
+Chaque item précise où se situe l'effort réel :
+
+| Indicateur | Signification |
+|---|---|
+| 🔧 **Technique** | Intégration d'un service ou d'une API — la logique métier est simple ou connue |
+| 📋 **Métier** | L'effort principal est de définition fonctionnelle : règles, cas limites, contenu. La technique suit une fois la logique arrêtée. |
+| ⚖️ **Les deux** | Effort équilibré |
 
 | Indicateur | Effort estimé |
 |---|---|
 | 🟢 Simple | < 0,5 jour |
 | 🟡 Standard | 0,5 à 1,5 jour |
-| 🔴 Complexe | > 1,5 jour |
+| 🔴 Conséquent | > 1,5 jour |
 
 ---
 
-## Phase 0 — Fondations
+## Jalon 0 — Socle technique
 
-*Socle technique invisible mais indispensable avant toute mise en production.*
+*Prérequis à tout le reste. Rien d'autre ne peut démarrer sans ce jalon.*
 
-### Infrastructure & qualité
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Pipeline CI/CD (déploiement automatique à chaque mise à jour) | 🟡 Standard | Build + déploiement automatisé sur Vercel + Supabase |
-| Monitoring des erreurs (Sentry) | 🟢 Simple | Détection et alertes en temps réel en cas de bug |
-
-### Authentification
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| "Se souvenir de moi" — session 1 an | 🟢 Simple | Configuration Supabase |
-| Vérification email obligatoire avant accès | 🟢 Simple | Activation dans les paramètres Supabase |
-
-### Vidéo (Mux)
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Upload vidéo depuis l'interface admin | 🟡 Standard | L'admin charge la vidéo, Mux la traite automatiquement |
-| Protection des vidéos (tokens sécurisés) | 🟡 Standard | Empêche l'accès aux vidéos sans être connecté et abonné |
-| Confirmation automatique de disponibilité vidéo | 🟡 Standard | Le système est notifié dès qu'une vidéo est prête à la lecture |
-
-### Interface admin — améliorations
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Éditeur de texte riche pour les cours (CKEditor) | 🟢 Simple | Formatage, titres, listes, gras, italique dans les leçons |
-| Réorganisation par glisser-déposer (chapitres, questions) | 🟡 Standard | Réordonner les éléments en faisant glisser |
-| Réinitialisation du mot de passe d'un utilisateur par l'admin | 🟢 Simple | Envoi d'un lien de reset depuis l'interface admin |
-| Export CSV des utilisateurs et connexions | 🟢 Simple | Téléchargement d'un fichier tableur depuis l'admin |
+| Fonctionnalité | Effort | Nature | Note |
+|---|---|---|---|
+| Pipeline CI/CD (déploiement automatique) | 🟡 Standard | 🔧 Technique | Build + deploy automatisé à chaque push |
+| Monitoring des erreurs (Sentry) | 🟢 Simple | 🔧 Technique | Branchement rapide, alertes en temps réel |
+| Vérification email obligatoire + session longue durée | 🟢 Simple | 🔧 Technique | Deux paramètres de configuration Supabase Auth |
+| Upload vidéo depuis l'admin (Mux Direct Upload) | 🟡 Standard | 🔧 Technique | L'admin charge la vidéo, Mux encode automatiquement |
+| Protection des vidéos (signed tokens Mux) | 🟡 Standard | 🔧 Technique | Une fonction serverless signe le token à la demande — accès impossible sans abonnement |
+| Notification de disponibilité vidéo (webhook Mux asset.ready) | 🟡 Standard | 🔧 Technique | La base de données est mise à jour dès qu'une vidéo est prête |
 
 ---
 
-## Phase 1 — Monétisation & Entrée
+## Jalon 1 — Monétisation
 
-*Le tunnel d'acquisition : de la découverte à l'abonnement payant.*
+*Le moteur de revenus. Entièrement délégué à Stripe — notre travail se limite au branchement.*
 
-### Paiement (Stripe natif)
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Page tarification (3 formules) | 🟢 Simple | Interface statique + boutons vers le checkout Stripe |
-| Paiement initial via Stripe Checkout | 🟡 Standard | Page hébergée Stripe, aucune interface de paiement à développer |
-| Renouvellements & relances automatiques (Stripe Billing) | 🟡 Standard | Stripe gère les échecs de paiement, les retries et les emails de relance |
-| Portail de gestion autonome (Stripe Customer Portal) | 🟢 Simple | L'utilisateur gère lui-même son abonnement — 1 appel API suffit |
-| Synchronisation des statuts d'abonnement en base | 🟡 Standard | Mise à jour automatique lors des événements Stripe (paiement, annulation…) |
-| Freemium — accès limité avec cadenas visuels | 🟡 Standard | Contenu verrouillé pour les non-abonnés, avec indication visuelle claire |
-| Codes promotionnels | 🟢 Simple | Gérés nativement dans le tableau de bord Stripe |
-
-### Acquisition & conversion
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Tunnel d'onboarding pré-paiement (4 étapes) | 🟡 Standard | Parcours guidé avant la page de paiement |
-| Témoignages en rotation sur la page tarification | 🟢 Simple | Composant visuel, données statiques ou configurables |
-
-### Parrainage
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Système de parrainage complet | 🟡 Standard | Code unique par utilisateur, suivi des filleuls, récompense automatique via Stripe (crédit sur le prochain paiement), réduction filleul via coupon Stripe |
-
-### Écoles partenaires
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Accès privilégié par domaine email d'école | 🟡 Standard | Reconnaissance automatique des emails école → crédit ou accès gratuit |
-
-### Emails transactionnels (Resend)
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Email de bienvenue à l'inscription | 🟢 Simple | |
-| Email de confirmation de paiement | 🟢 Simple | |
-| Email de reset de mot de passe | 🟢 Simple | |
-| Email de notification de parrainage | 🟢 Simple | |
+| Fonctionnalité | Effort | Nature | Note |
+|---|---|---|---|
+| Page tarification (3 formules) | 🟢 Simple | 📋 Métier | Interface statique — l'effort est de définir et rédiger les offres |
+| Paiement initial — Stripe Checkout | 🟡 Standard | 🔧 Technique | Page de paiement hébergée Stripe, zéro formulaire CB à développer |
+| Synchronisation des statuts d'abonnement | 🟡 Standard | 🔧 Technique | Webhooks Stripe → mise à jour de la base de données |
+| Portail client — Stripe Customer Portal | 🟢 Simple | 🔧 Technique | 1 appel API → l'utilisateur gère seul son abonnement (upgrade, annulation, CB, factures) |
+| Emails transactionnels essentiels (Resend) | 🟢 Simple | ⚖️ Les deux | Bienvenue, confirmation paiement, reset mot de passe — branchement rapide, effort principal = rédaction des templates |
 
 ---
 
-## Phase 2 — Cœur d'apprentissage
+## Jalon 2 — Expérience d'apprentissage
 
-*Les fonctionnalités centrales que l'utilisateur utilise chaque jour.*
+*Le cœur du produit que l'utilisateur utilise chaque jour. La base de code couvre déjà l'essentiel — l'effort est principalement de définition métier.*
 
-### Quiz & exercices
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Interface quiz robuste (sauvegarde automatique, soumission à 0:00, suivi du temps) | 🟡 Standard | Reprise possible si fermeture accidentelle, minuteur automatique |
-| Micro-compétences liées aux leçons | 🟡 Standard | Nouvelles entités à créer : micro-compétences attachées à chaque leçon |
-| Drills post-vidéo (5 questions, modale de fin de vidéo) | 🟡 Standard | Exercice court déclenché à la fin de chaque vidéo |
-| Test de positionnement (12-15 questions, scoring par domaine) | 🟡 Standard | Évaluation initiale après l'inscription pour orienter le parcours |
-| Correction complète avec vidéo explicative à la demande | 🟡 Standard | Player Mux intégré dans la correction, catégorisation des erreurs |
-| Mini-bilan post-exercice (3 notions faibles, feedback adaptatif) | 🟡 Standard | Résumé personnalisé après chaque exercice |
-| Générateur d'entraînement (comptage dynamique, pré-remplissage) | 🟡 Standard | Création de sessions personnalisées depuis les stats ou la correction |
-| Carnet d'erreurs V2 (2 colonnes, graphique, répétition espacée J+1/J+7) | 🟡 Standard | Refonte avec plus d'informations et d'outils |
-| Catalogue des sous-tests (score coloré, moyenne ASTPrep) | 🟡 Standard | Indicateur de performance collectif par sous-test |
-| Calcul automatique des moyennes ASTPrep (tâche planifiée) | 🟡 Standard | Calcul nocturne des scores de référence sur l'ensemble des utilisateurs |
-
-### TageMage blanc
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Examen blanc complet (6 étapes, enregistrement en temps réel, score /600) | 🔴 Complexe | Orchestration multi-étapes avec sauvegarde progressive et scoring pondéré |
-| Page de résultats (percentile, courbe de distribution, partage Discord) | 🟡 Standard | Positionnement par rapport à la communauté ASTPrep |
-
-### Bibliothèque de cours
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Page leçon complète (player Mux, onglets Transcript/Notes/Drill/Ask an Expert) | 🟡 Standard | Expérience de cours complète avec notes personnelles éditables |
-| Animation au scroll dans le catalogue | 🟢 Simple | Cosmétique — trait animé sur défilement |
+| Fonctionnalité | Effort | Nature | Note |
+|---|---|---|---|
+| Interface quiz robuste (sauvegarde auto, soumission à 0:00, suivi du temps) | 🟡 Standard | 📋 Métier | Mécanique de base existante. Définir : que se passe-t-il si l'utilisateur ferme l'onglet ? comment gère-t-on les questions non répondues à 0:00 ? |
+| Micro-compétences liées aux leçons | 🟡 Standard | 📋 Métier | Structure technique simple. L'effort : définir le référentiel de micro-compétences et leur association aux leçons |
+| Drills post-vidéo (5 questions, modale fin de vidéo) | 🟡 Standard | 📋 Métier | Techniquement simple. Nécessite de définir les 5 questions associées à chaque leçon |
+| Correction complète (player Mux à la demande, catégorisation des erreurs) | 🟡 Standard | 📋 Métier | Branchement Mux simple. Définir la catégorisation des erreurs et les "blocs de progression" associés |
+| Mini-bilan post-exercice (3 notions faibles, feedback adaptatif) | 🟡 Standard | 📋 Métier | Définir les 4 cas de feedback et leur formulation |
+| Carnet d'erreurs V2 (2 colonnes, graphique, répétition espacée J+1/J+7) | 🟡 Standard | ⚖️ Les deux | Base solide existante. Enrichissement visuel + logique de répétition espacée à préciser |
+| Générateur d'entraînement (comptage dynamique, pré-remplissage) | 🟡 Standard | 📋 Métier | Définir les critères de filtrage et l'expérience souhaitée |
+| Page leçon complète (player Mux, onglets Transcript / Notes / Drill / Ask an Expert) | 🟡 Standard | 📋 Métier | Player = branchement simple. Définir le fonctionnement de chaque onglet (notes partagées ou privées ? "Ask an Expert" = formulaire ou lien Discord ?) |
+| Catalogue sous-tests + cron moyennes ASTPrep | 🟡 Standard | 🔧 Technique | Cron Supabase Pro, calcul filtre score > 8/60, premier passage uniquement |
 
 ---
 
-## Phase 3 — Intelligence & Progression
+## Jalon 3 — TageMage blanc
 
-*Le moteur qui personnalise l'expérience.*
+*Fonctionnalité flagship. Traitée en jalon séparé car c'est le seul item où la complexité vient de l'orchestration elle-même.*
 
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Moteur de parcours adaptatif (15 profils, répartition pondérée) | 🟡 Standard | **Simplifié en V1** : les 15 profils sont définis manuellement dans l'admin, le moteur = table de correspondance (score visé → profil) + calcul d'heures selon la date d'examen. L'algo peut s'affiner en V2 avec les données réelles |
-| Interface parcours (vue liste / vue calendrier, personnalisation) | 🟡 Standard | Toggle entre les deux vues, barre de progression globale |
-| Statistiques V2 (filtres 7j/30j/90j, records personnels, répartition par thème, heatmap) | 🟡 Standard | Vue enrichie des performances sur le temps |
-| Dashboard complet (graphiques, score estimé, pop-up défi) | 🟡 Standard | Tableau de bord principal avec toutes les métriques clés |
+| Fonctionnalité | Effort | Nature | Note |
+|---|---|---|---|
+| Examen blanc complet (6 étapes, enregistrement en temps réel, score /600) | 🔴 Conséquent | 📋 Métier | **Le défi est principalement de cadrage** : définir l'enchaînement exact des 6 sous-tests, la formule de scoring pondéré /600, les comportements edge (coupure réseau, retour arrière, onglet fermé). La technique suit directement. |
+| Page de résultats (percentile, courbe de distribution, partage Discord) | 🟡 Standard | 📋 Métier | Définir la formule du percentile et les tranches d'affichage. La courbe est un composant graphique standard. |
 
 ---
 
-## Phase 4 — Outils & Communauté
+## Jalon 4 — Intelligence & Parcours
 
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Synchronisation des cours live sur Discord | 🟡 Standard | Les cours planifiés apparaissent automatiquement comme événements Discord |
-| Classement des défis complet (podium, top 20, filtres mensuel/trimestriel) | 🟡 Standard | Refonte du leaderboard avec plus de niveaux et de périodes |
+*La couche de personnalisation. L'enjeu est entièrement métier : les décisions prises ici conditionnent la valeur différenciante du produit.*
 
-> *Flashcards, Calcul mental, Lecture alphabétique et Fiches PDF sont déjà implémentés.*
-
----
-
-## Phase 5 — Gamification & Finition
-
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Animations de gamification (confettis, compteurs animés, ~20 micro pop-ups contextuels) | 🟡 Standard | Célébration des premières victoires, streaks, records |
-| Pop-up "Défi du jour" (1 fois par jour) | 🟢 Simple | |
-| Paramètres utilisateur complets (notifications, tiers-temps, lien portail Stripe) | 🟡 Standard | |
-| Dark mode dans les paramètres | 🟢 Simple | |
+| Fonctionnalité | Effort | Nature | Note |
+|---|---|---|---|
+| Test de positionnement (12-15 questions, scoring par domaine) | 🟡 Standard | 📋 Métier | Définir la sélection des questions, la grille de scoring, et ce que le résultat déclenche dans le parcours |
+| Moteur de parcours (15 profils, répartition pondérée) | 🟡 Standard | 📋 Métier | **Simplifié V1** : les 15 profils sont saisis manuellement dans l'admin par Grégoire. Le moteur = table de correspondance score visé → profil + calcul d'heures selon la date d'examen. **L'effort principal est de définir les 15 profils** — pas de coder un algorithme. |
+| Interface parcours (vue liste / vue calendrier, barre de progression) | 🟡 Standard | ⚖️ Les deux | |
+| Statistiques V2 (filtres 7j/30j/90j, records personnels, répartition thèmes, heatmap) | 🟡 Standard | 📋 Métier | Base technique existante. Définir les indicateurs à afficher et leur calcul. |
+| Dashboard complet (graphiques, score estimé, pop-up défi) | 🟡 Standard | 📋 Métier | Définir le calcul du score estimé et la composition des blocs |
 
 ---
 
-## Phase 6 — Migration & Go-Live
+## Jalon 5 — Finition & Go-Live
 
-| Fonctionnalité | Difficulté | Note |
-|---|---|---|
-| Étude de migration (audit du schéma V1 vs V3, test à blanc sur 100 utilisateurs) | 🟡 Standard | Analyse et décision documentée avant toute migration |
-| Scripts de migration des données (utilisateurs, scores, erreurs, abonnements) | 🔴 Complexe | Scripts one-shot, risque élevé si données corrompues en V1 — à traiter avec soin |
-| Recette finale (validation end-to-end, zéro anomalie critique) | 🟡 Standard | Phase de tests avant ouverture |
+*Polish, migration et ouverture. Techniquement léger dans l'ensemble — ce sont des jours d'itération, pas de conception.*
 
----
-
-## Ce que nous excluons de la V1
-
-Ces fonctionnalités ont été évaluées et **délibérément reportées en V2** (ou supprimées). Le gain de temps est significatif et le risque métier est faible au lancement.
-
-| Fonctionnalité | Décision | Justification |
-|---|---|---|
-| **Anti multi-connexions** | ⏳ V2 | Complexité disproportionnée pour le risque réel. Le partage de compte ne devient un problème qu'à grande échelle. Réimplémentable en V2 si nécessaire. |
-| **CRM Attio (synchronisation contacts)** | ⏳ V2 (voire jamais) | L'interface admin + export CSV couvre le besoin pour les 500 à 1 000 premiers utilisateurs. Aucune valeur immédiate. |
-| **Email marketing & séquences automatiques** | ⏳ V2 | Les relances d'inactivité, séquences onboarding automatisées et emails de réengagement sont reportés. En V1, on couvre uniquement les emails transactionnels essentiels (bienvenue, paiement, reset). |
-| **Algorithme de parcours full-dynamique** | ⏳ V2 | En V1, le moteur s'appuie sur 15 profils définis manuellement. L'algo dynamique complet sera affiné en V2 grâce aux données réelles d'utilisation. |
+| Fonctionnalité | Effort | Nature | Note |
+|---|---|---|---|
+| Animations gamification (confettis, compteurs, ~20 micro pop-ups contextuels) | 🟡 Standard | 📋 Métier | L'animation est triviale. L'effort : **définir les ~20 déclencheurs** (1er exercice terminé, streak 7j, nouveau record…) et leur formulation |
+| Pop-up "Défi du jour" | 🟢 Simple | 🔧 Technique | |
+| Dark mode dans les paramètres | 🟢 Simple | 🔧 Technique | Infrastructure déjà en place |
+| Paramètres utilisateur (notifications, tiers-temps, lien portail Stripe) | 🟡 Standard | 📋 Métier | Définir les options à exposer |
+| Éditeur de texte riche admin (CKEditor) | 🟢 Simple | 🔧 Technique | |
+| Étude de migration (audit schéma V1 vs V3, dry run 100 utilisateurs) | 🟡 Standard | ⚖️ Les deux | À lancer tôt — ne pas attendre le Jalon 5 pour commencer l'audit |
+| Scripts de migration des données (utilisateurs, scores, erreurs, abonnements) | 🔴 Conséquent | 🔧 Technique | Le risque dépend de l'état des données V1. Scripts one-shot à traiter avec soin. |
+| Recette finale (validation end-to-end, zéro anomalie critique) | 🟡 Standard | ⚖️ Les deux | |
 
 ---
 
-## Récapitulatif des items complexes (🔴)
+## V2 — Post go-live
 
-Ces deux points concentrent le plus de risque et méritent une attention particulière lors du planning :
+Ces fonctionnalités ont été **délibérément sorties de la V1** : elles ne sont pas nécessaires pour ouvrir, et les inclure compliquerait le scope sans apporter de valeur immédiate aux premiers utilisateurs.
 
-1. **Examen blanc TageMage** — orchestration multi-étapes avec enregistrement en temps réel
-2. **Scripts de migration V1 → V3** — dépend de l'état des données existantes, risque de données corrompues
+Elles forment une V2 cohérente, livrable rapidement après le go-live car la base technique sera déjà en place.
 
-*Tous les autres items complexes de la roadmap initiale ont été simplifiés grâce aux choix techniques ci-dessus.*
+| Fonctionnalité | Justification du report |
+|---|---|
+| **Parrainage** | Feature de croissance, pas de rétention. Pertinent une fois les premiers utilisateurs satisfaits — pas avant l'ouverture. |
+| **Écoles partenaires** | Idem — acquisition, pas nécessaire au go-live. |
+| **Freemium + cadenas visuels** | Uniquement pertinent si un tier gratuit est prévu. Si le lancement est 100% payant, c'est une décision future. |
+| **Drag & drop reorder admin** | L'admin fonctionne sans — les positions se gèrent manuellement en attendant. |
+| **Export CSV utilisateurs** | Le dashboard Supabase Studio couvre le besoin pour les premières semaines. |
+| **Témoignages en rotation** | Marketing — à alimenter avec de vrais retours post-lancement. |
+| **Sync cours live Discord** | Communauté — valeur réelle seulement quand la base d'utilisateurs est active. |
+| **Classement défis complet** | La base existe, le podium et les filtres mensuel/trimestriel peuvent attendre. |
+| **Anti multi-connexions** | Problème d'échelle — inexistant au lancement. |
+| **CRM Attio** | Inutile avant 1 000 utilisateurs. |
+| **Email marketing & séquences automatiques** | V1 couvre les emails transactionnels essentiels. Les séquences de réengagement viennent après. |
+| **Algorithme parcours full-dynamique** | V1 = 15 profils manuels. L'algo s'affinera avec les données réelles. |
+
+---
+
+## Synthèse : où se situe vraiment l'effort
+
+La majorité des items des Jalons 2, 3 et 4 **ne sont pas des défis techniques** — ils nécessitent des décisions de votre côté avant qu'on puisse coder quoi que ce soit :
+
+- Comment scorer exactement un TageMage ?
+- Quels sont les 15 profils de parcours et leurs poids ?
+- Quels sont les 20 déclencheurs de gamification et leur formulation ?
+- Comment catégoriser les erreurs dans la correction ?
+
+Ces points ne se débloquent pas en codant plus vite. **Plus ils sont arrêtés en amont de chaque jalon, plus le jalon avance vite.**
+
+Les seuls vrais défis techniques restants sont les **scripts de migration V1 → V3** (dépend de l'état des données existantes) et le **branchement Stripe** (standard mais demande du soin sur la gestion des états).
 
 ---
 
